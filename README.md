@@ -19,20 +19,27 @@ To define gene position within given fasta file, add start:# end:# to fasta desc
 '>geneA start:11 end:40'
 
 # Running Test
+Domain Insertion Scanning
 python3 run_spine.py -wDir tests -geneFile combined_fasta.fa -oligoLen 230
+
+Deep Mutational Scanning
+python3 run_spine.py -wDir tests -geneFile Kir.fa -DMS -oligoLen 230 -usage ecoli
 
 # Usage
 ```
 optional arguments:
-optional arguments:
-  -h, --help            show this help message and exit
-  -wDir WDIR            Working directory for fasta files and output folder
-  -geneFile GENEFILE    Input all gene sequences including backbone in a fasta
-                        format. Place all in one fasta file. Name description
-                        can include start and end points (>gene1 start:1 end:2)
-  -handle HANDLE        Genetic handle for domain insertion
-  -matchSequences       Find similar sequences between genes to avoid printing
-                        the same oligos multiple times. Default: No matching
-  -oligoLen OLIGOLEN
-  -fragmentLen FRAGMENTLEN
+-h, --help                 show this help message and exit
+-wDir WDIR                 Working directory for fasta files and output folder
+-geneFile GENEFILE         Input all gene sequences including backbone in a fasta
+                           format. Place all in one fasta file. Name description
+                           can include start and end points (>gene1 start:1
+                           end:2)
+-handle HANDLE             Genetic handle for domain insertion
+-matchSequences            Find similar sequences between genes to avoid printing
+                           the same oligos multiple times. Default: No matching
+-oligoLen OLIGOLEN         Synthesized oligo length
+-fragmentLen FRAGMENTLEN   Maximum length of gene fragment
+-DIS                       Run deep insertion scan
+-DMS                       Run deep mutation scan
+-usage USAGE               Default is "human". Or select "ecoli"
 ```

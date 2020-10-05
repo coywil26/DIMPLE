@@ -19,11 +19,11 @@ To define gene position within given fasta file, add start:# end:# to fasta desc
 '>geneA start:11 end:40'
 
 # Running Test
-Domain Insertion Scanning
-python3 run_spine.py -wDir tests -geneFile combined_fasta.fa -oligoLen 230
+Domain Insertion Scanning:
+python3 run_spine.py -wDir tests -geneFile combined_fasta.fa -oligoLen 230 -mutationType DIS
 
-Deep Mutational Scanning
-python3 run_spine.py -wDir tests -geneFile Kir.fa -DMS -oligoLen 230 -usage ecoli
+Deep Mutational Scanning:
+python3 run_spine.py -wDir tests -geneFile Kir.fa -oligoLen 230 -mutationType DMS -usage ecoli
 
 # Usage
 ```
@@ -39,7 +39,6 @@ optional arguments:
                            the same oligos multiple times. Default: No matching
 -oligoLen OLIGOLEN         Synthesized oligo length
 -fragmentLen FRAGMENTLEN   Maximum length of gene fragment
--DIS                       Run deep insertion scan
--DMS                       Run deep mutation scan
+-mutationType              Run deep insertion scan "DIS" or deep mutation scan "DMS"
 -usage USAGE               Default is "human". Or select "ecoli"
 ```

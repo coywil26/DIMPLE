@@ -644,9 +644,9 @@ def generate_DIS_fragments(OLS, folder=''):
 
         while idx < len(gene.breaklist):
             if idx == 0:
-                tmp_oligos = []
-                tmp_barPrimer = []
-                tmp_genePrimer = []
+                gene.oligos = []
+                gene.barPrimer = []
+                gene.genePrimer = []
             frag = gene.breaklist[idx]
             fragstart = str(int((frag[0] - SPINEgene.primerBuffer) / 3))
             fragend = str(int((frag[1] - SPINEgene.primerBuffer) / 3))
@@ -776,9 +776,9 @@ def generate_DMS_fragments(OLS, folder=''):
         all_grouped_oligos = []
         while idx < len(tmpbreaklist):
             if idx == 0:
-                tmp_oligos = []
-                tmp_barPrimer = []
-                tmp_genePrimer = []
+                gene.oligos = []
+                gene.barPrimer = []
+                gene.genePrimer = []
             frag = tmpbreaklist[idx]
             grouped_oligos = []
             fragstart = str(int((frag[0] - SPINEgene.primerBuffer) / 3) + 1)

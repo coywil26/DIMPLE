@@ -98,7 +98,7 @@ class SPINEgene:
     def __init__(self, gene, start=[], end=[]):
         #  Search for ORF
         try:
-            SPINEgene.maxfrag
+            SPINEgene.maxfrag # if SPINEgene.maxfrag doesnt exist, create it
         except AttributeError:
             SPINEgene.maxfrag = self.synth_len - 62  # based on space for barcodes, cut sites, handle
         self.geneid = gene.name
@@ -135,29 +135,29 @@ class SPINEgene:
                 'GCT': 0.26, 'GCC': 0.4, 'GCA': 0.23, 'GCG': 0.11, 'GGT': 0.16, 'GGC': 0.34, 'GGA': 0.25, 'GGG': 0.25
                 }
         self.SynonymousCodons = {
-            'CYS': ['TGT', 'TGC'],
-            'ASP': ['GAT', 'GAC'],
-            'SER': ['TCT', 'TCG', 'TCA', 'TCC', 'AGC', 'AGT'],
-            'GLN': ['CAA', 'CAG'],
-            'MET': ['ATG'],
-            'ASN': ['AAC', 'AAT'],
-            'PRO': ['CCT', 'CCG', 'CCA', 'CCC'],
-            'LYS': ['AAG', 'AAA'],
+            'Cys': ['TGT', 'TGC'],
+            'Asp': ['GAT', 'GAC'],
+            'Ser': ['TCT', 'TCG', 'TCA', 'TCC', 'AGC', 'AGT'],
+            'Gln': ['CAA', 'CAG'],
+            'Met': ['ATG'],
+            'Asn': ['AAC', 'AAT'],
+            'Pro': ['CCT', 'CCG', 'CCA', 'CCC'],
+            'Lys': ['AAG', 'AAA'],
             'STOP': ['TAG', 'TGA', 'TAA'],
-            'THR': ['ACC', 'ACA', 'ACG', 'ACT'],
-            'PHE': ['TTT', 'TTC'],
-            'ALA': ['GCA', 'GCC', 'GCG', 'GCT'],
-            'GLY': ['GGT', 'GGG', 'GGA', 'GGC'],
-            'ILE': ['ATC', 'ATA', 'ATT'],
-            'LEU': ['TTA', 'TTG', 'CTC', 'CTT', 'CTG', 'CTA'],
-            'HIS': ['CAT', 'CAC'],
-            'ARG': ['CGA', 'CGC', 'CGG', 'CGT', 'AGG', 'AGA'],
-            'TRP': ['TGG'],
-            'VAL': ['GTA', 'GTC', 'GTG', 'GTT'],
-            'GLU': ['GAG', 'GAA'],
-            'TYR': ['TAT', 'TAC']}
-        self.aminoacids = ['CYS', 'ASP', 'SER', 'GLN', 'MET', 'ASN', 'PRO', 'LYS', 'THR', 'PHE', 'ALA', 'GLY', 'ILE', 'LEU',
-                      'HIS', 'ARG', 'TRP', 'VAL', 'GLU', 'TYR']
+            'Thr': ['ACC', 'ACA', 'ACG', 'ACT'],
+            'Phe': ['TTT', 'TTC'],
+            'Ala': ['GCA', 'GCC', 'GCG', 'GCT'],
+            'Gly': ['GGT', 'GGG', 'GGA', 'GGC'],
+            'Ile': ['ATC', 'ATA', 'ATT'],
+            'Leu': ['TTA', 'TTG', 'CTC', 'CTT', 'CTG', 'CTA'],
+            'His': ['CAT', 'CAC'],
+            'Arg': ['CGA', 'CGC', 'CGG', 'CGT', 'AGG', 'AGA'],
+            'Trp': ['TGG'],
+            'Val': ['GTA', 'GTC', 'GTG', 'GTT'],
+            'Glu': ['GAG', 'GAA'],
+            'Tyr': ['TAT', 'TAC']}
+        self.aminoacids = ['Cys', 'Asp', 'Ser', 'Gln', 'Met', 'Asn', 'Pro', 'Lys', 'Thr', 'Phe', 'Ala', 'Gly', 'Ile', 'Leu',
+                      'His', 'Arg', 'Trp', 'Val', 'Glu', 'Tyr']
 
         # First check for BsaI sites and BsmBI sites
         if any([gene.seq.upper().count(cut) for cut in ['GGTCTC', 'GAGACC', 'CGTCTC', 'GAGACG']]):
@@ -199,7 +199,7 @@ class SPINEgene:
             start = genestart[genenum - 1] - 1  # subtract 1 to account for 0 indexing
             end = geneend[genenum - 1]
             print(gene.seq[start:end].translate()[:10])
-            quest = "g"
+            quest = "g" # holding place
 
             while quest != "n" and quest != "y":
                 quest = input("Is this the beginning of your gene?(position %i) (y/n):" % (start))
@@ -225,7 +225,7 @@ class SPINEgene:
         self.aacount = int((end - start) / 3)
         self.start = start
         self.end = end
-        # record sequence with extra bp to account for primer
+        # record sequence with extra bp to account for primer. for plasmids (circular) we can rearrange linear sequence)
         if start - self.primerBuffer < 0:
             self.seq = gene.seq[start - self.primerBuffer:] + gene.seq[:end + self.primerBuffer]
         elif end + self.primerBuffer > len(gene.seq):
@@ -402,7 +402,9 @@ def align_genevariation(OLS):
 
 
 def find_geneprimer(genefrag, start, end):
-    primer = genefrag[start:end].complement() + "CTCTGCATA"
+    # start is variable to adjust melting temperature
+    # end is fixed with restriction site added
+    primer = genefrag[start:end].complement() + "CTCTGCATA" # added ATA for cleavage close to end of DNA fragment
     # Check melting temperature
     # find complementary sequences
     comp = 0  # compensate for bases that align with bsmbi
@@ -602,19 +604,18 @@ def switch_fragmentsize(gene, detectedsite, OLS):
     return skip
 
 
-def check_overhangs(gene, OLS):
+def check_overhangs(gene, OLS, overlap):
     # Force all overhangs to be different within a gene (no more than 2 matching in a row)
     if not isinstance(gene, SPINEgene):
         raise TypeError('Not an instance of the SPINEgene class')
     while True:
         overhang = []
         for idx, y in enumerate(gene.breaklist):
-            overhang.append([gene.seq[y[0] - 4:y[0]], idx])  # Forward overhang
-            overhang.append([gene.seq[y[1]:y[1] + 4], idx + 1])  # Reverse overhang
+            overhang.append([gene.seq[y[0] - 4 - overlap : y[0] - overlap], idx])  # Forward overhang
+            overhang.append([gene.seq[y[1] + overlap : y[1] + 4 + overlap], idx + 1])  # Reverse overhang
         detectedsites = set()  # stores matching overhangs
         for i in range(len(overhang)):  # check each overhang for matches
-            for j in [x for x in range(len(overhang)) if
-                      x != i]:  # permutate over every overhang combination to find matches
+            for j in [x for x in range(len(overhang)) if x != i]:  # permutate over every overhang combination to find matches
                 if overhang[i][0] == overhang[j][0] or overhang[i][0][:3] == overhang[j][0][:3] or overhang[i][0][1:] == overhang[j][0][1:]:  # no 3 matching sequences
                     detectedsites.update([overhang[i][1]])
         for detectedsite in detectedsites:
@@ -626,19 +627,20 @@ def check_overhangs(gene, OLS):
             break
 
 
-def generate_DIS_fragments(OLS, folder=''):
+def generate_DIS_fragments(OLS, overlap, folder=''):
     if not isinstance(OLS[0], SPINEgene):
         raise TypeError('Not an instance of the SPINEgene class')
     # Loop through each gene or gene variation
     finishedGenes = []
     for ii, gene in enumerate(OLS):
         print('--------------------------------- Analyzing Gene:' + gene.geneid + ' ---------------------------------')
-        if not any([tmp in finishedGenes for tmp in gene.linked]):
+        if not any([tmp in finishedGenes for tmp in gene.linked]):  # only run analysis for one of the linked genes
             # Quality Control for overhangs from the same gene
-            check_overhangs(gene, OLS)
+            check_overhangs(gene, OLS, overlap)
         # Generate oligos and Primers
-        idx = 0
+        idx = 0 # index for fragment
         totalcount = 0
+        #storage for unused barcodes
         compileF = []
         compileR = []
 
@@ -651,14 +653,14 @@ def generate_DIS_fragments(OLS, folder=''):
             fragstart = str(int((frag[0] - SPINEgene.primerBuffer) / 3))
             fragend = str(int((frag[1] - SPINEgene.primerBuffer) / 3))
             print('Creating Gene:' + gene.geneid + ' --- Fragment:' + fragstart + '-' + fragend)
-            if not any([tmp in finishedGenes for tmp in gene.linked]):  # do not duplicate for linked genes
+            if not any([tmp in finishedGenes for tmp in gene.linked]):  # only run analysis for one of the linked genes
                 # Primers for gene amplification with addition of BsmBI site
-                genefrag = gene.seq[frag[0] - SPINEgene.primerBuffer:frag[0] + SPINEgene.primerBuffer]
-                reverse, tmR, sR = find_geneprimer(genefrag, 15, SPINEgene.primerBuffer + 1)
-                genefrag = gene.seq[frag[1] - SPINEgene.primerBuffer:frag[1] + SPINEgene.primerBuffer]
-                forward, tmF, sF = find_geneprimer(genefrag.reverse_complement(), 15, SPINEgene.primerBuffer + 1)
-                tmpr = check_nonspecific(reverse, gene.seq, frag[0] - len(gene.seq) + 10)
-                tmpf = check_nonspecific(forward, gene.seq, frag[1] - 10)
+                genefrag = gene.seq[frag[0]-SPINEgene.primerBuffer : frag[0]+SPINEgene.primerBuffer]
+                reverse, tmR, sR = find_geneprimer(genefrag, 15, SPINEgene.primerBuffer+1-overlap) # 15 is just a starting point
+                genefrag = gene.seq[frag[1]-SPINEgene.primerBuffer: frag[1]+SPINEgene.primerBuffer]
+                forward, tmF, sF = find_geneprimer(genefrag.reverse_complement(), 15, SPINEgene.primerBuffer+1-overlap)
+                tmpr = check_nonspecific(reverse, gene.seq, frag[0] - len(gene.seq) + 10 - overlap) # negative numbers look for reverse primers
+                tmpf = check_nonspecific(forward, gene.seq, frag[1] - 10 + overlap)
                 if tmpf or tmpr:
                     # swap size with another fragment
                     if tmpf:
@@ -688,11 +690,12 @@ def generate_DIS_fragments(OLS, folder=''):
                 tmF = 0
                 tmR = 0
                 count = 0
-                tmpseq = gene.seq[frag[0] - 4:frag[1] + 4].ungap('-')
+                tmpseq = gene.seq[frag[0] - 4-overlap : frag[1]+4+overlap].ungap('-') #4 is overhang for BsmBI
                 while tmF < SPINEgene.primerTm[0] or tmR < SPINEgene.primerTm[0]:  # swap out barcode if tm is low
                     difference = (SPINEgene.synth_len - (len(tmpseq) + 14 + len(SPINEgene.handle)))  # 14 bases is the length of the restriction sites with overhangs (7 bases each)
                     barF = SPINEgene.barcodeF.pop(0)
                     barR = SPINEgene.barcodeR.pop(0)
+                    count += 1  # How many barcodes used
                     compileF.append(barF)
                     compileR.append(barR)
                     while difference / 2 > len(barF):
@@ -710,13 +713,12 @@ def generate_DIS_fragments(OLS, folder=''):
                         continue
                     tmpfrag = barF.seq[0:int(difference / 2)] + "CGTCTCC" + tmpseq + "GGAGACG" + barR.seq.reverse_complement()[0:difference - int(difference / 2)]
                     # primers for amplifying subpools
-                    offset = int(difference / 2) + 11
-                    primerF, tmF = find_fragment_primer(tmpfrag, offset)  # add 11 bases for type 2 restriction
+                    offset = int(difference / 2) + 11  # add 11 bases for type 2 restriction
+                    primerF, tmF = find_fragment_primer(tmpfrag, offset)
                     primerR, tmR = find_fragment_primer(tmpfrag.reverse_complement(), (difference - offset + 22))
-                    count += 1  # How many barcodes used
 
-                # Create a gene fragment for each insertion point
-                for i in range(offset, offset + gene.fragsize[idx], 3):  # Could replace fragsize with frag[1]-frag[0]
+                # Create a gene fragment for each insertion point. Important! This loop does all the work. Change this loop to edit mutation type
+                for i in range(offset + overlap, offset + gene.fragsize[idx] + overlap, 3):  # Could replace fragsize with frag[1]-frag[0]
                     xfrag = tmpfrag[0:i] + SPINEgene.handle + tmpfrag[i:]
                     if len(xfrag) < SPINEgene.synth_len:
                         print('Fragment is ' + str(len(xfrag)))
@@ -727,9 +729,8 @@ def generate_DIS_fragments(OLS, folder=''):
                     if (xfrag.upper()[offset:len(tmpseq)+offset].count('CGTCTC') + xfrag.upper()[offset:len(tmpseq)+offset].count('GAGACG')) > 2:
                         raise ValueError('BsmBI site found within insertion fragment')
                     gene.oligos.append(SeqRecord(xfrag,
-                                                    id=gene.geneid + "_DI_" + fragstart + "-" + fragend + "_insertion" + str(int((frag[0] + i - offset - SPINEgene.primerBuffer) / 3)),
+                                                    id=gene.geneid + "_DI_" + fragstart + "-" + fragend + "_insertion" + str(int((frag[0] + i - offset - SPINEgene.primerBuffer - overlap) / 3)),
                                                     description=''))
-
                 # Store primers for gene fragment
                 gene.barPrimer.append(SeqRecord(primerF, id=gene.geneid + "_oligoP_DI-" + str(idx + 1) + "_F",
                                                 description="Frag" + fragstart + "-" + fragend + "_" + str(tmF) + 'C'))
@@ -748,10 +749,11 @@ def generate_DIS_fragments(OLS, folder=''):
         # Amplification Primers
         SeqIO.write(gene.genePrimer, os.path.join(folder.replace('\\', ''),
                                                   gene.geneid + "_DI_Gene_Primers.fasta"), "fasta")
+        # Record finished gene for aligned genes
         finishedGenes.extend([ii])
 
 
-def generate_DMS_fragments(OLS, folder=''):
+def generate_DMS_fragments(OLS, overlap, folder=''):
     if not isinstance(OLS[0], SPINEgene):
         raise TypeError('Not an instance of the SPINEgene class')
     # Loop through each gene or gene variation
@@ -763,10 +765,11 @@ def generate_DMS_fragments(OLS, folder=''):
         tmpbreaklist = [[x[0] - 3, x[1]] for x in gene.breaklist]  # Shift gene fragments to mutate first codon
         if not any([tmp in finishedGenes for tmp in gene.linked]):  # only run analysis for one of the linked genes
             # Quality Control for overhangs from the same gene
-            check_overhangs(gene, OLS)
+            check_overhangs(gene, OLS, overlap)
         # Generate oligos and Primers
-        idx = 0
+        idx = 0 # index for fragment
         totalcount = 0
+        #storage for unused barcodes
         compileF = []
         compileR = []
         missingSites = []
@@ -786,13 +789,13 @@ def generate_DMS_fragments(OLS, folder=''):
             print('Creating Gene:' + gene.geneid + ' --- Fragment:' + fragstart + '-' + fragend)
             if not any([tmp in finishedGenes for tmp in gene.linked]):  # only run analysis for one of the linked genes
                 # Primers for gene amplification with addition of BsmBI site
-                genefrag = gene.seq[frag[0] - SPINEgene.primerBuffer:frag[0] + SPINEgene.primerBuffer]
-                reverse, tmR, sR = find_geneprimer(genefrag, 15, SPINEgene.primerBuffer + 1)
-                genefrag = gene.seq[frag[1] - SPINEgene.primerBuffer:frag[1] + SPINEgene.primerBuffer]
-                forward, tmF, sF = find_geneprimer(genefrag.reverse_complement(), 15, SPINEgene.primerBuffer + 1)
-                tmpr = check_nonspecific(reverse, gene.seq, frag[0] - len(gene.seq) + 10)
-                tmpf = check_nonspecific(forward, gene.seq, frag[1] - 10)
-                if tmpf | tmpr:
+                genefrag = gene.seq[frag[0]-SPINEgene.primerBuffer : frag[0]+SPINEgene.primerBuffer]
+                reverse, tmR, sR = find_geneprimer(genefrag, 15, SPINEgene.primerBuffer+1-overlap) # 15 is just a starting point
+                genefrag = gene.seq[frag[1]-SPINEgene.primerBuffer: frag[1]+SPINEgene.primerBuffer]
+                forward, tmF, sF = find_geneprimer(genefrag.reverse_complement(), 15, SPINEgene.primerBuffer+1-overlap)
+                tmpr = check_nonspecific(reverse, gene.seq, frag[0] - len(gene.seq) + 10 - overlap) # negative numbers look for reverse primers
+                tmpf = check_nonspecific(forward, gene.seq, frag[1] - 10 + overlap)
+                if tmpf or tmpr:
                     # swap size with another fragment
                     if tmpf:
                         idx = idx + 1
@@ -834,9 +837,10 @@ def generate_DMS_fragments(OLS, folder=''):
                 tmF = 0
                 tmR = 0
                 count = 0
-                tmpseq = gene.seq[frag[0] - 4:frag[1] + 4].ungap('-')  # add overhangs
-                offset = 4
+                tmpseq = gene.seq[frag[0] - 4-overlap : frag[1]+4+overlap].ungap('-') #4 is overhang for BsmBI
+                offset = 4 + overlap
                 tmpsequences = []
+                # Create the mutations
                 for i in range(offset, offset + frag[1] - frag[0], 3):
                     wt = [name for name, codon in gene.SynonymousCodons.items() if tmpseq[i:i + 3].upper() in codon]
                     for jk in (x for x in gene.aminoacids if x not in wt[0]):
@@ -860,10 +864,10 @@ def generate_DMS_fragments(OLS, folder=''):
                 # add on barcodes
                 tmpseq = tmpsequences[0].seq
                 while tmF < SPINEgene.primerTm[0] or tmR < SPINEgene.primerTm[0]:  # swap out barcode if tm is low
-                    difference = (SPINEgene.synth_len - (len(tmpseq) + 14))  # 14 bases is the recognition site +1 (7 bases each)
-                    # print(len(tmpseq))
+                    difference = (SPINEgene.synth_len - (len(tmpseq) + 14))  # 14 bases is the length of the restriction sites with overhangs (7 bases each)
                     barF = SPINEgene.barcodeF.pop(0)
                     barR = SPINEgene.barcodeR.pop(0)
+                    count += 1  # How many barcodes used
                     compileF.append(barF)
                     compileR.append(barR)
                     while difference / 2 > len(barF):
@@ -873,15 +877,13 @@ def generate_DMS_fragments(OLS, folder=''):
                         compileR.append(tmpR)
                         barF += tmpF
                         barR += tmpR
+                        count += 1  # How many barcodes used
                     tmpfrag_1 = barF.seq[0:int(difference / 2)] + "CGTCTCC" + tmpseq[0:4]
                     tmpfrag_2 = tmpseq[-4:] + "GGAGACG" + barR.seq.reverse_complement()[0:difference - int(difference / 2)]
                     # primers for amplifying subpools
                     offset = int(difference / 2) + 11  # add 11 bases for type 2 restriction
-                    barF, tmF = find_fragment_primer(tmpfrag_1, offset)
-                    barR, tmR = find_fragment_primer(tmpfrag_2.reverse_complement(), (difference - offset + 22))
-                    # print(tmF)
-                    # print(tmR)
-                    count += 1  # How many barcodes used
+                    primerF, tmF = find_fragment_primer(tmpfrag_1, offset)
+                    primerR, tmR = find_fragment_primer(tmpfrag_2.reverse_complement(), (difference - offset + 22))
                 group_oligos = []
                 for sequence in tmpsequences:
                     combined_sequence = tmpfrag_1 + sequence.seq[4:-4] + tmpfrag_2
@@ -891,9 +893,9 @@ def generate_DMS_fragments(OLS, folder=''):
                         grouped_oligos.append(SeqRecord(combined_sequence, id=sequence.id, description=''))
 
                 # Store primers for gene fragment
-                gene.barPrimer.append(SeqRecord(barF, id=gene.geneid + "_oligoP_Mut-" + str(idx + 1) + "_F",
+                gene.barPrimer.append(SeqRecord(primerF, id=gene.geneid + "_oligoP_Mut-" + str(idx + 1) + "_F",
                                                 description="Frag" + fragstart + "-" + fragend + "_" + str(tmF) + 'C'))
-                gene.barPrimer.append(SeqRecord(barR, id=gene.geneid + "_oligoP_Mut-" + str(idx + 1) + "_R",
+                gene.barPrimer.append(SeqRecord(primerR, id=gene.geneid + "_oligoP_Mut-" + str(idx + 1) + "_R",
                                                 description="Frag" + fragstart + "-" + fragend + "_" + str(tmR) + 'C'))
                 print('Barcodes used:' + str(count))
                 print('Barcodes Remaining:' + str(len(SPINEgene.barcodeF)))
@@ -963,7 +965,7 @@ def generate_DMS_fragments(OLS, folder=''):
         # Amplification Primers
         SeqIO.write(gene.genePrimer, os.path.join(folder.replace('\\', ''),
                                                   gene.geneid + "_Mut_Gene_Primers.fasta"), "fasta")
-        # Record finsihed gene for aligned genes
+        # Record finished gene for aligned genes
         finishedGenes.extend([ii])
 
 
@@ -1146,7 +1148,7 @@ def post_qc(OLS):
                         nonspecific.append([primername, fragname])
                         print("Found Non-specific Amplification")
     if nonspecific:
-        print('Nonspecific Primers: (Manually changin primer sequence recommended)')
+        print('Nonspecific Primers: (Manually changing primer sequence recommended)')
         print(nonspecific)
     else:
-        print('No nonspecific primers detected')
+        print('No non-specific primers detected')

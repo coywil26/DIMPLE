@@ -34,11 +34,18 @@ optional arguments:
                            format. Place all in one fasta file. Name description
                            can include start and end points (>gene1 start:1
                            end:2)
--handle HANDLE             Genetic handle for domain insertion
+-handle HANDLE             Genetic handle for domain insertion.  This is important
+                           for defining the linker. Currently uses BsaI (4 base
+                           overhang), but this can be swapped for SapI (3 base
+                           overhang).
 -matchSequences            Find similar sequences between genes to avoid printing
                            the same oligos multiple times. Default: No matching
 -oligoLen OLIGOLEN         Synthesized oligo length
 -fragmentLen FRAGMENTLEN   Maximum length of gene fragment
+-overlap OVERLAP           Enter number of bases to extend each fragment for
+                           overlap. This could help with insertion coverage close to
+                           fragment boundary. Overlap does not add additional
+                           insertions and thus no additional oligos.
 -mutationType              Run deep insertion scan "DIS" or deep mutation scan "DMS"
 -usage USAGE               Default is "human". Or select "ecoli"
 ```

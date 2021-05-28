@@ -19,6 +19,9 @@ parser.add_argument('-mutationType',
                     choices=['DIS', 'DMS'],
                     help='Choose if you will run deep insertion scan or deep mutation scan')
 parser.add_argument('-usage', default='human', help='Default is "human". Or select "ecoli"')
+parser.add_argument('-insertions',default=False, nargs='+', help='Enter a list of insertions (nucleotides) to make at every position. Note, you should enter multiples of 3 nucleotides to maintain reading frame')
+parser.add_argument('-deletions',default=False, nargs='+', help='Enter a list of deletions (number of nucleotides) to symmetrically delete (it will make deletions in multiples of 2x). Note you should enter multiples of 3 to maintain reading frame')
+parser.add_argument('-include_substitutions',default=True, help='If you are running DMS but only want to insert or delete AA')
 #parser.add_argument('-restrictionSeq', default=['GGTCTC', 'CGTCTC', 'GCTCTTC'])  # BsaI, BsmBI, SapI
 
 args = parser.parse_args()
@@ -54,11 +57,12 @@ OLS = addgene(args.wDir+'/'+args.geneFile)
 
 if args.matchSequences == 'match':
     align_genevariation(OLS)
-
+if args.deletions:
+    args.deletions = [int(x) for x in args.deletions]
 if args.mutationType == 'DIS':
     generate_DIS_fragments(OLS, args.overlap, args.wDir)
 elif args.mutationType == 'DMS':
-    generate_DMS_fragments(OLS, args.overlap, args.wDir)
+    generate_DMS_fragments(OLS, args.overlap, args.include_substitutions, args.insertions, args.deletions, args.wDir)
 
 post_qc(OLS)
 print_all(OLS, args.wDir)

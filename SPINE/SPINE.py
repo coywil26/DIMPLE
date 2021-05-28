@@ -402,8 +402,8 @@ def align_genevariation(OLS):
 
 
 def find_geneprimer(genefrag, start, end):
-    # start is variable to adjust melting temperature
-    # end is fixed with restriction site added
+    # start is variable to adjust melting temperature (5' of primer)
+    # end is fixed with restriction site added (3' of primer)
     primer = genefrag[start:end].complement() + "CTCTGCATA" # added ATA for cleavage close to end of DNA fragment
     # Check melting temperature
     # find complementary sequences
@@ -439,8 +439,9 @@ def find_geneprimer(genefrag, start, end):
 
 
 def find_fragment_primer(fragment, stop):
-    start = 0  # starts at maximum length
-    if stop > 25:
+    # This function finds optimal primer for OLS subpool by changing 3' end of primer
+    start = 0  # starts at maximum length (5' is fixed)
+    if stop > 25: # limit primer to 25 bases to begin with
         end = 25
     else:
         end = stop
@@ -530,7 +531,22 @@ def switch_fragmentsize(gene, detectedsite, OLS):
     skip = False
     count = 0
     print('Non specific Fragment:' + str(detectedsite))
-    gene.problemsites.add(gene.breaksites[detectedsite])
+    if len(gene.fragsize)*SPINEgene.maxfrag < len(gene.seq): # if the maxfrag has changed and it is impossible to split the gene into x number of fragments it should recalculate the number of fragments
+        num = int(round(((gene.end - gene.start) / float(SPINEgene.maxfrag)) + 0.499999999))  # total bins needed (rounded up)
+        insertionsites = range(gene.start + 3, gene.end + 3, 3)
+        gene.fragsize = [len(insertionsites[i::num]) * 3 for i in list(range(num))]
+        total = SPINEgene.primerBuffer
+        breaksites = [SPINEgene.primerBuffer]
+        for x in gene.fragsize:
+            total += x
+            breaksites.extend([total])
+        gene.breaklist = [[x + 3, x + gene.fragsize[idx]] for idx, x in
+                          enumerate(breaksites[:-1])]  # insertion site to insertion site
+        gene.problemsites = set()
+        gene.breaksites = breaksites
+        gene.unique_Frag = [True]*len(gene.fragsize)
+    else:
+        gene.problemsites.add(gene.breaksites[detectedsite])
     if all(item == SPINEgene.maxfrag for item in gene.fragsize) or any(
             item > SPINEgene.maxfrag for item in gene.fragsize):
         tmpmax = SPINEgene.maxfrag + 3
@@ -753,15 +769,23 @@ def generate_DIS_fragments(OLS, overlap, folder=''):
         finishedGenes.extend([ii])
 
 
-def generate_DMS_fragments(OLS, overlap, folder=''):
+def generate_DMS_fragments(OLS, overlap, dms=True, insert=False, delete=False, folder=''):
+    # dms set to true for subsitition mutations
+    # insert set to a list of insertions
+    # delete set to a list of numbers of symmetrical deletions
     if not isinstance(OLS[0], SPINEgene):
         raise TypeError('Not an instance of the SPINEgene class')
     # Loop through each gene or gene variation
     finishedGenes = []
+    # Adjust fragments to account for variable sized fragments with the same subpool barcodes/primers
+    if insert:
+        SPINEgene.maxfrag = SPINEgene.synth_len - 66 - max([len(x) for x in insert])  # increase barcode space to allow for variable sized fragments within an oligo
+        for gene in OLS:
+            switch_fragmentsize(gene, 1, OLS)
     for ii, gene in enumerate(OLS):
         print('--------------------------------- Analyzing Gene:' + gene.geneid + ' ---------------------------------')
         gene.breaklist[0][0] += 3  # Do not mutate first codon
-        gene.fragsize[0] += -3  # Readjust size to match breaklist
+        gene.fragsize[0] += -3  # Adjust size to match breaklist
         tmpbreaklist = [[x[0] - 3, x[1]] for x in gene.breaklist]  # Shift gene fragments to mutate first codon
         if not any([tmp in finishedGenes for tmp in gene.linked]):  # only run analysis for one of the linked genes
             # Quality Control for overhangs from the same gene
@@ -806,10 +830,12 @@ def generate_DMS_fragments(OLS, overlap, folder=''):
                         continue
                     # Quality Control for overhangs from the same gene
                     # check_overhangs(gene, OLS)
-                    SPINEgene.barcodeF.extend(compileF)
+                    SPINEgene.barcodeF.extend(compileF)  # return unused primers
                     SPINEgene.barcodeR.extend(compileR)
-                    compileF = []
+                    compileF = []  # reset unused primers
                     compileR = []
+                    gene.genePrimer = []  # reset gene all primers due to nonspecific primer
+                    gene.barPrimer = []
                     idx = 0
                     continue
                 # Store
@@ -837,34 +863,67 @@ def generate_DMS_fragments(OLS, overlap, folder=''):
                 tmF = 0
                 tmR = 0
                 count = 0
-                tmpseq = gene.seq[frag[0] - 4-overlap : frag[1]+4+overlap].ungap('-') #4 is overhang for BsmBI
+                tmpseq = gene.seq[frag[0]-4-overlap : frag[1]+4+overlap].ungap('-')  # extract sequence for oligo fragment include an extra 4 bases for BsmBI cut site and overlap
                 offset = 4 + overlap
-                tmpsequences = []
-                # Create the mutations
-                for i in range(offset, offset + frag[1] - frag[0], 3):
-                    wt = [name for name, codon in gene.SynonymousCodons.items() if tmpseq[i:i + 3].upper() in codon]
-                    for jk in (x for x in gene.aminoacids if x not in wt[0]):
-                        p = [gene.usage[aa] for aa in gene.SynonymousCodons[jk]]  # Find probabilities
-                        p = [xp if xp > 0.1 else 0 for xp in p]  # Remove probabilities below 0.1
-                        p = [xp / sum(p) for xp in p]  # Normalize to 1
-                        mutation = np.random.choice(gene.SynonymousCodons[jk], 1, p)  # Pick one codon
-                        xfrag = tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]  # Add mutation to fragment
-                        # Check each cassette for more than 2 BsmBI and 2 BsaI sites
-                        while xfrag.upper().count('GGTCTC') + xfrag.upper().count('GAGACC') > 2 | xfrag.upper().count('CGTCTC') + xfrag.upper().count('GAGACG') > 2:
-                            print('Found BsaI and BsmBI sites')  # change codon
+                ################# Create the mutations
+                # DMS
+                dms_sequences = []
+                if dms:
+                    for i in range(offset, offset + frag[1] - frag[0], 3):
+                        wt_codon = tmpseq[i:i + 3].upper()
+                        wt = [name for name, codon in gene.SynonymousCodons.items() if wt_codon in codon]
+                        # note that we also create synonymous wt codons
+                        for jk in (x for x in gene.aminoacids): # if x not in wt[0]):
+                            p = [gene.usage[aa] for aa in gene.SynonymousCodons[jk] if aa not in wt_codon]  # Find probabilities but not wild type codon
+                            p = [xp if xp > 0.1 else 0 for xp in p]  # Remove probabilities below 0.1
+                            p = [xp / sum(p) for xp in p]  # Normalize to 1
                             mutation = np.random.choice(gene.SynonymousCodons[jk], 1, p)  # Pick one codon
-                            xfrag = tmpseq[0:i] + mutation + tmpseq[i + 3:]
-                        tmpsequences.append(SeqRecord(xfrag,
-                                                      id=gene.geneid + "_Mut" + fragstart + "-" + fragend + "_" + wt[0] + str(int((frag[0] + i + 3 - offset - SPINEgene.primerBuffer) / 3)) + jk,
-                                                      description=''))
-
+                            xfrag = tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]  # Add mutation to fragment
+                            # Check each cassette for more than 2 BsmBI and 2 BsaI sites
+                            while xfrag.upper().count('GGTCTC') + xfrag.upper().count('GAGACC') > 2 | xfrag.upper().count('CGTCTC') + xfrag.upper().count('GAGACG') > 2:
+                                print('Found BsaI and BsmBI sites')  # change codon
+                                mutation = np.random.choice(gene.SynonymousCodons[jk], 1, p)  # Pick one codon
+                                xfrag = tmpseq[0:i] + mutation + tmpseq[i + 3:]
+                            dms_sequences.append(SeqRecord(xfrag,
+                                                          id=gene.geneid + "_DMS-" + str(idx + 1) + "_" + wt[0] + str(int((frag[0] + i + 3 - offset - SPINEgene.primerBuffer) / 3)) + jk,
+                                                          description='Frag '+fragstart + "-" + fragend))
+                if insert:
+                    # insertion
+                    for i in range(offset, offset + frag[1] - frag[0], 3):
+                        for insert_n in insert:
+                            xfrag = tmpseq[0:i] + insert_n + tmpseq[i:]  # Add mutation to fragment
+                            # Check each cassette for more than 2 BsmBI and 2 BsaI sites
+                            while xfrag.upper().count('GGTCTC') + xfrag.upper().count('GAGACC') > 2 | xfrag.upper().count('CGTCTC') + xfrag.upper().count('GAGACG') > 2:
+                                print('Found BsaI and BsmBI sites')  # change codon
+                                raise # not sure how to solve this issue
+                                #mutation?
+                                #xfrag = tmpseq[0:i] + mutation + tmpseq[i + 3:]
+                            dms_sequences.append(SeqRecord(xfrag,
+                                                          id=gene.geneid + "_insert-" + str(idx + 1) + "_" + insert_n + '-' + str(int((frag[0] + i + 3 - offset - SPINEgene.primerBuffer) / 3)),
+                                                          description='Frag '+fragstart + "-" + fragend))
+                if delete:
+                    # deletion
+                    for i in range(offset, offset + frag[1] - frag[0], 3):
+                        for delete_n in delete:
+                            if delete_n > i or delete_n+i > len(tmpseq):
+                                raise
+                            else:
+                                xfrag = tmpseq[0:i-delete_n] + tmpseq[i+delete_n:]  # delete both directions - multiples of 2
+                            # Check each cassette for more than 2 BsmBI and 2 BsaI sites
+                            while xfrag.upper().count('GGTCTC') + xfrag.upper().count('GAGACC') > 2 | xfrag.upper().count('CGTCTC') + xfrag.upper().count('GAGACG') > 2:
+                                print('Found BsaI and BsmBI sites')  # change codon
+                                raise # not sure how to solve this issue
+                                #xfrag = tmpseq[0:i-delete_n-3] + tmpseq[i+delete_n:] iteratively shift deletion to avoid cut sites? or mutate codons of near by aa?
+                            dms_sequences.append(SeqRecord(xfrag,
+                                                          id=gene.geneid + "_delete-" + str(idx + 1) + "_" + str(delete_n) + '-' + str(int((frag[0] + i + 3 - offset - SPINEgene.primerBuffer) / 3)),
+                                                          description='Frag '+fragstart + "-" + fragend))
                 if gene.num_frag_per_oligo > 1:
-                    tmpsequences = combine_fragments(tmpsequences, gene.num_frag_per_oligo, gene.split)
-
-                # add on barcodes
-                tmpseq = tmpsequences[0].seq
+                    dms_sequences = combine_fragments(dms_sequences, gene.num_frag_per_oligo, gene.split)
+                # determine barcodes for subpool amplification based on smallest size
+                frag_sizes = [len(xf.seq) for xf in dms_sequences]
+                smallest_frag = dms_sequences[frag_sizes.index(min(frag_sizes))].seq
                 while tmF < SPINEgene.primerTm[0] or tmR < SPINEgene.primerTm[0]:  # swap out barcode if tm is low
-                    difference = (SPINEgene.synth_len - (len(tmpseq) + 14))  # 14 bases is the length of the restriction sites with overhangs (7 bases each)
+                    difference = (SPINEgene.synth_len - (len(smallest_frag) + 14))  # 14 bases is the length of the restriction sites with overhangs (7 bases each)
                     barF = SPINEgene.barcodeF.pop(0)
                     barR = SPINEgene.barcodeR.pop(0)
                     count += 1  # How many barcodes used
@@ -878,24 +937,29 @@ def generate_DMS_fragments(OLS, overlap, folder=''):
                         barF += tmpF
                         barR += tmpR
                         count += 1  # How many barcodes used
-                    tmpfrag_1 = barF.seq[0:int(difference / 2)] + "CGTCTCC" + tmpseq[0:4]
+                    tmpfrag_1 = barF.seq[0:int(difference / 2)] + "CGTCTCC" + tmpseq[0:4] # include recoginition site and the 4 base overhang
                     tmpfrag_2 = tmpseq[-4:] + "GGAGACG" + barR.seq.reverse_complement()[0:difference - int(difference / 2)]
                     # primers for amplifying subpools
                     offset = int(difference / 2) + 11  # add 11 bases for type 2 restriction
                     primerF, tmF = find_fragment_primer(tmpfrag_1, offset)
                     primerR, tmR = find_fragment_primer(tmpfrag_2.reverse_complement(), (difference - offset + 22))
                 group_oligos = []
-                for sequence in tmpsequences:
-                    combined_sequence = tmpfrag_1 + sequence.seq[4:-4] + tmpfrag_2
+                for sequence in dms_sequences: # add barcodes to the fragments to make the oligos
+                    if insert or delete:
+                        difference = SPINEgene.synth_len - len(sequence.seq[4:-4]) - 22 # how many bases need to be added to make oligo correct length
+                        offset = int(difference/2) # force it to be a integer
+                        combined_sequence = tmpfrag_1[:offset] + tmpfrag_1[-11:] + sequence.seq[4:-4] + tmpfrag_2[:11] + tmpfrag_2[-(difference - offset):]
+                    else:
+                        combined_sequence = tmpfrag_1 + sequence.seq[4:-4] + tmpfrag_2
                     if gene.doublefrag == 0:
                         gene.oligos.append(SeqRecord(combined_sequence, id=sequence.id, description=''))
                     else:
                         grouped_oligos.append(SeqRecord(combined_sequence, id=sequence.id, description=''))
 
                 # Store primers for gene fragment
-                gene.barPrimer.append(SeqRecord(primerF, id=gene.geneid + "_oligoP_Mut-" + str(idx + 1) + "_F",
+                gene.barPrimer.append(SeqRecord(primerF, id=gene.geneid + "_oligoP_DMS-" + str(idx + 1) + "_F",
                                                 description="Frag" + fragstart + "-" + fragend + "_" + str(tmF) + 'C'))
-                gene.barPrimer.append(SeqRecord(primerR, id=gene.geneid + "_oligoP_Mut-" + str(idx + 1) + "_R",
+                gene.barPrimer.append(SeqRecord(primerR, id=gene.geneid + "_oligoP_DMS-" + str(idx + 1) + "_R",
                                                 description="Frag" + fragstart + "-" + fragend + "_" + str(tmR) + 'C'))
                 print('Barcodes used:' + str(count))
                 print('Barcodes Remaining:' + str(len(SPINEgene.barcodeF)))
@@ -958,13 +1022,13 @@ def generate_DMS_fragments(OLS, overlap, folder=''):
         # print(tabulate(missingTable))
         # Fragments
         SeqIO.write(gene.oligos, os.path.join(folder.replace('\\', ''),
-                                                 gene.geneid + "_Mut_Oligos.fasta"), "fasta")
+                                                 gene.geneid + "_DMS_Oligos.fasta"), "fasta")
         # Barcode Primers
         SeqIO.write(gene.barPrimer, os.path.join(folder.replace('\\', ''),
-                                                 gene.geneid + "_Mut_Oligo_Primers.fasta"), "fasta")
+                                                 gene.geneid + "_DMS_Oligo_Primers.fasta"), "fasta")
         # Amplification Primers
         SeqIO.write(gene.genePrimer, os.path.join(folder.replace('\\', ''),
-                                                  gene.geneid + "_Mut_Gene_Primers.fasta"), "fasta")
+                                                  gene.geneid + "_DMS_Gene_Primers.fasta"), "fasta")
         # Record finished gene for aligned genes
         finishedGenes.extend([ii])
 

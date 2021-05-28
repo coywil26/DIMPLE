@@ -23,6 +23,8 @@ parser.add_argument('-insertions',default=False, nargs='+', help='Enter a list o
 parser.add_argument('-deletions',default=False, nargs='+', help='Enter a list of deletions (number of nucleotides) to symmetrically delete (it will make deletions in multiples of 2x). Note you should enter multiples of 3 to maintain reading frame')
 parser.add_argument('-include_substitutions',default=True, help='If you are running DMS but only want to insert or delete AA')
 #parser.add_argument('-restrictionSeq', default=['GGTCTC', 'CGTCTC', 'GCTCTTC'])  # BsaI, BsmBI, SapI
+# -deletions 3 6 9
+# -insertions ATG ATGAAA ATGAAACCC
 
 args = parser.parse_args()
 

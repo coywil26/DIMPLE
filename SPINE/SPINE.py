@@ -905,10 +905,10 @@ def generate_DMS_fragments(OLS, overlap, dms=True, insert=False, delete=False, f
                     # deletion
                     for i in range(offset, offset + frag[1] - frag[0], 3):
                         for delete_n in delete:
-                            if delete_n > i or delete_n+i > len(tmpseq):
-                                raise
+                            if delete_n+i > len(tmpseq):
+                                raise ValueError('deletions cannot be larger than fragment itself')
                             else:
-                                xfrag = tmpseq[0:i-delete_n] + tmpseq[i+delete_n:]  # delete both directions - multiples of 2
+                                xfrag = tmpseq[0:i] + tmpseq[i+delete_n:]  # delete forward from position only
                             # Check each cassette for more than 2 BsmBI and 2 BsaI sites
                             while xfrag.upper().count('GGTCTC') + xfrag.upper().count('GAGACC') > 2 | xfrag.upper().count('CGTCTC') + xfrag.upper().count('GAGACG') > 2:
                                 print('Found BsaI and BsmBI sites')  # change codon

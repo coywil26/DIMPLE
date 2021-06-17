@@ -3,6 +3,7 @@
 
 import argparse
 from SPINE.SPINE import align_genevariation, generate_DIS_fragments, print_all, post_qc, addgene, SPINEgene, generate_DMS_fragments
+from Bio.Seq import Seq
 
 parser = argparse.ArgumentParser(description="SPINE Saturated Programmable INsertion Engineering")
 parser.add_argument('-wDir', help='Working directory for fasta files and output folder')
@@ -12,20 +13,14 @@ parser.add_argument('-matchSequences', action='store_const', const='match', defa
 parser.add_argument('-oligoLen', required=True, type=int, help='Synthesized oligo length')
 parser.add_argument('-fragmentLen', default=[], type=int, help='Maximum length of gene fragment')
 parser.add_argument('-overlap', default=0, type=int, help='Enter number of bases to extend each fragment for overlap. This will help with insertions close to fragment boundary')
-parser.add_argument('-mutationType',
-                    default='DIS',
-                    const='DIS',
-                    nargs='?',
-                    choices=['DIS', 'DMS'],
-                    help='Choose if you will run deep insertion scan or deep mutation scan')
+parser.add_argument('-mutationType', default='DIS', const='DIS', nargs='?', choices=['DIS', 'DMS'], help='Choose if you will run deep insertion scan or deep mutation scan')
 parser.add_argument('-usage', default='human', help='Default is "human". Or select "ecoli"')
 parser.add_argument('-insertions',default=False, nargs='+', help='Enter a list of insertions (nucleotides) to make at every position. Note, you should enter multiples of 3 nucleotides to maintain reading frame')
 parser.add_argument('-deletions',default=False, nargs='+', help='Enter a list of deletions (number of nucleotides) to symmetrically delete (it will make deletions in multiples of 2x). Note you should enter multiples of 3 to maintain reading frame')
 parser.add_argument('-include_substitutions',default=True, help='If you are running DMS but only want to insert or delete AA')
-#parser.add_argument('-restrictionSeq', default=['GGTCTC', 'CGTCTC', 'GCTCTTC'])  # BsaI, BsmBI, SapI
-# -deletions 3 6 9
-# -insertions ATG ATGAAA ATGAAACCC
-
+parser.add_argument('-barcode_start', default=0, help='To run SPINE multiple times, you will need to avoid using the same barcodes. This allows you to start at a different barcode.')
+parser.add_argument('-restriction_sequence', default='CGTCTC', help='Recommended using BsmBI - CGTCTC or BsaI - GGTCTC')
+parser.add_argument('-avoid_sequence', default=['CGTCTC', 'GGTCTC'], help='Avoid these sequences in the backbone - BsaI and BsmBI')
 args = parser.parse_args()
 
 if args.wDir is None:
@@ -48,7 +43,11 @@ else:
 #adjust primer primerBuffer
 SPINEgene.primerBuffer += args.overlap
 
-#SPINEgene.restrict_seq = args.restrictionSeq
+SPINEgene.avoid_sequence = args.avoid_sequence
+SPINEgene.barcodeF = SPINEgene.barcodeF[args.barcode_start:]
+SPINEgene.barcodeR = SPINEgene.barcodeR[args.barcode_start:]
+SPINEgene.cutsite = Seq(args.restriction_sequence)
+SPINEgene.avoid_sequence = [Seq(x) for x in args.avoid_sequence]
 if args.mutationType == 'DMS':
     if args.usage:
         SPINEgene.usage = args.usage

@@ -160,7 +160,7 @@ class SPINEgene:
                       'His', 'Arg', 'Trp', 'Val', 'Glu', 'Tyr']
 
         # First check for BsaI sites and BsmBI sites
-        if any([gene.seq.upper().count(cut) for cut in ['GGTCTC', 'GAGACC', 'CGTCTC', 'GAGACG']]):
+        if any([gene.seq.upper().count(cut) + gene.seq.upper().count(cut.reverse_complement()) for cut in SPINEgene.avoid_sequence]):
             raise ValueError('Unwanted Restriction cut sites found. Please input plasmids with these removed.')  # change codon
         if start and end and (end - start) % 3 != 0:
             print('Gene length is not divisible by 3')
@@ -727,7 +727,7 @@ def generate_DIS_fragments(OLS, overlap, folder=''):
                         print('Additional restriction sites found in barcode. Replacing barcodes')
                         # return barcodes?
                         continue
-                    tmpfrag = barF.seq[0:int(difference / 2)] + "CGTCTCC" + tmpseq + "GGAGACG" + barR.seq.reverse_complement()[0:difference - int(difference / 2)]
+                    tmpfrag = barF.seq[0:int(difference / 2)] + SPINEgene.cutsite + "C" + tmpseq + "G" + SPINEgene.cutsite.reverse_complement() + barR.seq.reverse_complement()[0:difference - int(difference / 2)]
                     # primers for amplifying subpools
                     offset = int(difference / 2) + 11  # add 11 bases for type 2 restriction
                     primerF, tmF = find_fragment_primer(tmpfrag, offset)
@@ -740,10 +740,8 @@ def generate_DIS_fragments(OLS, overlap, folder=''):
                         print('Fragment is ' + str(len(xfrag)))
                         raise ValueError('Fragment is less than specifified oligo length')
                     # Check each cassette for more than 2 BsmBI and 2 BsaI sites
-                    if (xfrag.upper()[offset:len(tmpseq)+offset].count('GGTCTC') + xfrag.upper()[offset:len(tmpseq)+offset].count('GAGACC')) > 2:
-                        raise ValueError('BsaI site found within insertion fragment')
-                    if (xfrag.upper()[offset:len(tmpseq)+offset].count('CGTCTC') + xfrag.upper()[offset:len(tmpseq)+offset].count('GAGACG')) > 2:
-                        raise ValueError('BsmBI site found within insertion fragment')
+                    if any([(xfrag.upper()[offset:len(tmpseq)+offset].count(x) + xfrag.upper()[offset:len(tmpseq)+offset].count(x.reverse_complement())) > 2 for x in SPINEgene.avoid_sequence]):
+                        raise ValueError('Unwanted restriction site found within insertion fragment')
                     gene.oligos.append(SeqRecord(xfrag,
                                                     id=gene.geneid + "_DI_" + fragstart + "-" + fragend + "_insertion" + str(int((frag[0] + i - offset - SPINEgene.primerBuffer - overlap) / 3)),
                                                     description=''))
@@ -880,8 +878,8 @@ def generate_DMS_fragments(OLS, overlap, dms=True, insert=False, delete=False, f
                             mutation = np.random.choice(gene.SynonymousCodons[jk], 1, p)  # Pick one codon
                             xfrag = tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]  # Add mutation to fragment
                             # Check each cassette for more than 2 BsmBI and 2 BsaI sites
-                            while xfrag.upper().count('GGTCTC') + xfrag.upper().count('GAGACC') > 2 | xfrag.upper().count('CGTCTC') + xfrag.upper().count('GAGACG') > 2:
-                                print('Found BsaI and BsmBI sites')  # change codon
+                            while any([(xfrag.upper().count(x) + xfrag.upper().count(x.reverse_complement())) > 2 for x in SPINEgene.avoid_sequence]):
+                                print('Found avoided sequences')  # change codon
                                 mutation = np.random.choice(gene.SynonymousCodons[jk], 1, p)  # Pick one codon
                                 xfrag = tmpseq[0:i] + mutation + tmpseq[i + 3:]
                             dms_sequences.append(SeqRecord(xfrag,
@@ -893,9 +891,9 @@ def generate_DMS_fragments(OLS, overlap, dms=True, insert=False, delete=False, f
                         for insert_n in insert:
                             xfrag = tmpseq[0:i] + insert_n + tmpseq[i:]  # Add mutation to fragment
                             # Check each cassette for more than 2 BsmBI and 2 BsaI sites
-                            while xfrag.upper().count('GGTCTC') + xfrag.upper().count('GAGACC') > 2 | xfrag.upper().count('CGTCTC') + xfrag.upper().count('GAGACG') > 2:
-                                print('Found BsaI and BsmBI sites')  # change codon
-                                raise # not sure how to solve this issue
+                            while any([(xfrag.upper().count(x) + xfrag.upper().count(x.reverse_complement())) > 2 for x in SPINEgene.avoid_sequence]):
+                                raise ValueError('Unwanted restriction site found within insertion fragment')
+                                # not sure how to solve this issue
                                 #mutation?
                                 #xfrag = tmpseq[0:i] + mutation + tmpseq[i + 3:]
                             dms_sequences.append(SeqRecord(xfrag,
@@ -910,9 +908,8 @@ def generate_DMS_fragments(OLS, overlap, dms=True, insert=False, delete=False, f
                             else:
                                 xfrag = tmpseq[0:i] + tmpseq[i+delete_n:]  # delete forward from position only
                             # Check each cassette for more than 2 BsmBI and 2 BsaI sites
-                            while xfrag.upper().count('GGTCTC') + xfrag.upper().count('GAGACC') > 2 | xfrag.upper().count('CGTCTC') + xfrag.upper().count('GAGACG') > 2:
-                                print('Found BsaI and BsmBI sites')  # change codon
-                                raise # not sure how to solve this issue
+                            while any([(xfrag.upper().count(x) + xfrag.upper().count(x.reverse_complement())) > 2 for x in SPINEgene.avoid_sequence]):
+                                raise ValueError('Unwanted restriction site found within insertion fragment')
                                 #xfrag = tmpseq[0:i-delete_n-3] + tmpseq[i+delete_n:] iteratively shift deletion to avoid cut sites? or mutate codons of near by aa?
                             dms_sequences.append(SeqRecord(xfrag,
                                                           id=gene.geneid + "_delete-" + str(idx + 1) + "_" + str(delete_n) + '-' + str(int((frag[0] + i + 3 - offset - SPINEgene.primerBuffer) / 3)),
@@ -937,8 +934,8 @@ def generate_DMS_fragments(OLS, overlap, dms=True, insert=False, delete=False, f
                         barF += tmpF
                         barR += tmpR
                         count += 1  # How many barcodes used
-                    tmpfrag_1 = barF.seq[0:int(difference / 2)] + "CGTCTCC" + tmpseq[0:4] # include recoginition site and the 4 base overhang
-                    tmpfrag_2 = tmpseq[-4:] + "GGAGACG" + barR.seq.reverse_complement()[0:difference - int(difference / 2)]
+                    tmpfrag_1 = barF.seq[0:int(difference / 2)] + SPINEgene.cutsite + "C" + tmpseq[0:4] # include recoginition site and the 4 base overhang
+                    tmpfrag_2 = tmpseq[-4:] + "G" + SPINEgene.cutsite.reverse_complement() + barR.seq.reverse_complement()[0:difference - int(difference / 2)]
                     # primers for amplifying subpools
                     offset = int(difference / 2) + 11  # add 11 bases for type 2 restriction
                     primerF, tmF = find_fragment_primer(tmpfrag_1, offset)
@@ -1049,10 +1046,10 @@ def combine_fragments(tandem, num_frag_per_oligo, split):
                 name = tmp.id
                 tmp = tandem.pop(0)
                 if direction == 1:
-                    tmp_tandem += "GGAGACG" + tmpR + tmpF + "CGTCTCC" + tmp.seq  # concatenate and add cut sites with buffer
+                    tmp_tandem += "G" + SPINEgene.cutsite.reverse_complement() + tmpR + tmpF + SPINEgene.cutsite + "C" + tmp.seq  # concatenate and add cut sites with buffer
                     direction = -1
                 else:
-                    tmp_tandem += "GGAGACG" + tmpR + tmpF + "CGTCTCC" + tmp.seq.reverse_complement()  # concatenate and add cut sites with buffer
+                    tmp_tandem += "G" + SPINEgene.cutsite.reverse_complement() + tmpR + tmpF + SPINEgene.cutsite + "C" + tmp.seq.reverse_complement()  # concatenate and add cut sites with buffer
                     direction = 1
                 tandem_id += '+' + tmp.id
                 barcodes.append(SeqRecord(tmpR, id=name))
@@ -1060,10 +1057,10 @@ def combine_fragments(tandem, num_frag_per_oligo, split):
             else:
                 tmp = tandem.pop(0)
                 if direction == 1:
-                    tmp_tandem += "GGAGACG" + "ACGT" + "CGTCTCC" + tmp.seq  # concatenate and add cut sites with buffer
+                    tmp_tandem += "G" + SPINEgene.cutsite.reverse_complement() + "ACGT" + SPINEgene.cutsite + "C" + tmp.seq  # concatenate and add cut sites with buffer
                     direction = -1
                 else:
-                    tmp_tandem += "GGAGACG" + "ACGT" + "CGTCTCC" + tmp.seq.reverse_complement()
+                    tmp_tandem += "G" + SPINEgene.cutsite.reverse_complement() + "ACGT" + SPINEgene.cutsite + "C" + tmp.seq.reverse_complement()
                     direction = 1
                 tandem_id += '+' + tmp.id
         tandem_seq.append(SeqRecord(tmp_tandem, id=tandem_id, description=''))
@@ -1079,10 +1076,10 @@ def combine_fragments(tandem, num_frag_per_oligo, split):
                 name = tmp.id
                 tmp = tandem.pop(0)
                 if direction == 1:
-                    tmp_tandem += "GGAGACG" + "ACGT" + "CGTCTCC" + tmp.seq  # concatenate and add cut sites with buffer
+                    tmp_tandem += "G" + SPINEgene.cutsite.reverse_complement() + "ACGT" + SPINEgene.cutsite + "C" + tmp.seq  # concatenate and add cut sites with buffer
                     direction = 1
                 else:
-                    tmp_tandem += "GGAGACG" + "ACGT" + "CGTCTCC" + tmp.seq.reverse_complement()  # concatenate and add cut sites with buffer
+                    tmp_tandem += "G" + SPINEgene.cutsite.reverse_complement() + "ACGT" + SPINEgene.cutsite + "C" + tmp.seq.reverse_complement()  # concatenate and add cut sites with buffer
                     direction = -1
                 tandem_id += '+' + tmp.id
                 barcodes.append(SeqRecord(tmpR, id=name))
@@ -1090,10 +1087,10 @@ def combine_fragments(tandem, num_frag_per_oligo, split):
             else:
                 tmp = tandem.pop(0)
                 if direction == -1:
-                    tmp_tandem += "GGAGACG" + "ACGT" + "CGTCTCC" + tmp.seq  # concatenate and add cut sites with buffer
+                    tmp_tandem += "G" + SPINEgene.cutsite.reverse_complement() + "ACGT" + SPINEgene.cutsite + "C" + tmp.seq  # concatenate and add cut sites with buffer
                     direction = 1
                 else:
-                    tmp_tandem += "GGAGACG" + "ACGT" + "CGTCTCC" + tmp.seq
+                    tmp_tandem += "G" + SPINEgene.cutsite.reverse_complement() + "ACGT" + SPINEgene.cutsite + "C" + tmp.seq
                     direction = -1
                 tandem_id += '+' + tmp.id
         difference = len(tandem_seq[-1].seq) - len(tmp_tandem)

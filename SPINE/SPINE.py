@@ -161,7 +161,7 @@ class SPINEgene:
 
         # First check for BsaI sites and BsmBI sites
         if any([gene.seq.upper().count(cut) + gene.seq.upper().count(cut.reverse_complement()) for cut in SPINEgene.avoid_sequence]):
-            raise ValueError('Unwanted Restriction cut sites found. Please input plasmids with these removed.')  # change codon
+            raise ValueError('Unwanted Restriction cut sites found. Please input plasmids with these removed.' + SPINEgene.avoid_sequence)  # change codon
         if start and end and (end - start) % 3 != 0:
             print('Gene length is not divisible by 3')
             start = []

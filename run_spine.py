@@ -20,7 +20,7 @@ parser.add_argument('-deletions',default=False, nargs='+', help='Enter a list of
 parser.add_argument('-include_substitutions',default=True, help='If you are running DMS but only want to insert or delete AA')
 parser.add_argument('-barcode_start', default=0, help='To run SPINE multiple times, you will need to avoid using the same barcodes. This allows you to start at a different barcode.')
 parser.add_argument('-restriction_sequence', default='CGTCTC', help='Recommended using BsmBI - CGTCTC or BsaI - GGTCTC')
-parser.add_argument('-avoid_sequence', default=['CGTCTC', 'GGTCTC'], help='Avoid these sequences in the backbone - BsaI and BsmBI')
+parser.add_argument('-avoid_sequence', nargs='+', default=['CGTCTC', 'GGTCTC'], help='Avoid these sequences in the backbone - BsaI and BsmBI. For multiple sequnces use a space between inputs. Example -avoid_sequence CGTCTC GGTCTC')
 args = parser.parse_args()
 
 if args.wDir is None:
@@ -44,9 +44,10 @@ else:
 SPINEgene.primerBuffer += args.overlap
 
 SPINEgene.avoid_sequence = args.avoid_sequence
-SPINEgene.barcodeF = SPINEgene.barcodeF[args.barcode_start:]
-SPINEgene.barcodeR = SPINEgene.barcodeR[args.barcode_start:]
+SPINEgene.barcodeF = SPINEgene.barcodeF[int(args.barcode_start):]
+SPINEgene.barcodeR = SPINEgene.barcodeR[int(args.barcode_start):]
 SPINEgene.cutsite = Seq(args.restriction_sequence)
+print(args.avoid_sequence)
 SPINEgene.avoid_sequence = [Seq(x) for x in args.avoid_sequence]
 if args.mutationType == 'DMS':
     if args.usage:

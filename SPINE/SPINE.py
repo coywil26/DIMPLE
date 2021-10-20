@@ -404,7 +404,7 @@ def align_genevariation(OLS):
 def find_geneprimer(genefrag, start, end):
     # start is variable to adjust melting temperature (5' of primer)
     # end is fixed with restriction site added (3' of primer)
-    primer = genefrag[start:end].complement() + "CTCTGCATA" # added ATA for cleavage close to end of DNA fragment
+    primer = genefrag[start:end].complement() + SPINEgene.cutsite[::-1] + "ATA" # added ATA for cleavage close to end of DNA fragment
     # Check melting temperature
     # find complementary sequences
     comp = 0  # compensate for bases that align with bsmbi
@@ -417,14 +417,14 @@ def find_geneprimer(genefrag, start, end):
     while tm2 < SPINEgene.primerTm[0] or tm2 > SPINEgene.primerTm[1] or tm4 < SPINEgene.primerTm[0] or tm4 > SPINEgene.primerTm[1]:
         if tm2 < SPINEgene.primerTm[0] or tm4 < SPINEgene.primerTm[0]:
             start += -1
-            primer = genefrag[start:end].complement() + "CTCTGCATA"  # BsmbI Site addition
+            primer = genefrag[start:end].complement() + SPINEgene.cutsite[::-1] + "ATA"  # BsmbI Site addition
             tm2 = mt.Tm_NN(primer[0:end - start + comp], nn_table=mt.DNA_NN2)
             tm4 = mt.Tm_NN(primer[0:end - start + comp], nn_table=mt.DNA_NN4)
         if count > 12 or start == 0:  # stop if caught in inf loop or if linker is at max (31 + 7 = 38 bases)
             break
         if tm2 > SPINEgene.primerTm[1] and tm4 > SPINEgene.primerTm[1]:
             start += 1
-            primer = genefrag[start:end].complement() + "CTCTGCATA"
+            primer = genefrag[start:end].complement() + SPINEgene.cutsite[::-1] + "ATA"
             # tm = mt.Tm_NN(primer[0:e-s+comp],c_seq=genefrag[s:e+comp],nn_table=mt.DNA_NN2)
             tm2 = mt.Tm_NN(primer[0:end - start + comp], nn_table=mt.DNA_NN2)
             tm4 = mt.Tm_NN(primer[0:end - start + comp], nn_table=mt.DNA_NN4)
@@ -470,7 +470,6 @@ def find_fragment_primer(fragment, stop):
             tm2 = mt.Tm_NN(primer, nn_table=mt.DNA_NN2)
             tm4 = mt.Tm_NN(primer, nn_table=mt.DNA_NN4)
     return primer, round(tm2, 1)
-
 
 def check_nonspecific(primer, fragment, point):
     non = []
@@ -723,7 +722,7 @@ def generate_DIS_fragments(OLS, overlap, folder=''):
                         barR += tmpR
                         count += 1  # How many barcodes used
                     # check barcode for BsmBI cut sites (not BsaI)
-                    if barF.seq[0:int(difference / 2)].count('CGTCTC') or barF.seq[0:int(difference / 2)].count('GAGACG') or barR.seq.reverse_complement()[0:difference - int(difference / 2)].count('CGTCTC') or barR.seq.reverse_complement()[0:difference - int(difference / 2)].count('GAGACG'):
+                    if any([barF.seq[0:int(difference / 2)].count(cut) for cut in SPINEgene.avoid_sequence]) or any([barR.seq.reverse_complement()[0:difference - int(difference / 2)].count(cut) for cut in SPINEgene.avoid_sequence]):
                         print('Additional restriction sites found in barcode. Replacing barcodes')
                         # return barcodes?
                         continue
@@ -777,7 +776,7 @@ def generate_DMS_fragments(OLS, overlap, dms=True, insert=False, delete=False, f
     finishedGenes = []
     # Adjust fragments to account for variable sized fragments with the same subpool barcodes/primers
     if insert:
-        SPINEgene.maxfrag = SPINEgene.synth_len - 66 - max([len(x) for x in insert])  # increase barcode space to allow for variable sized fragments within an oligo
+        SPINEgene.maxfrag = SPINEgene.synth_len - 68 - max([len(x) for x in insert])  # increase barcode space to allow for variable sized fragments within an oligo
         for gene in OLS:
             switch_fragmentsize(gene, 1, OLS)
     for ii, gene in enumerate(OLS):
@@ -938,8 +937,8 @@ def generate_DMS_fragments(OLS, overlap, dms=True, insert=False, delete=False, f
                     tmpfrag_2 = tmpseq[-4:] + "G" + SPINEgene.cutsite.reverse_complement() + barR.seq.reverse_complement()[0:difference - int(difference / 2)]
                     # primers for amplifying subpools
                     offset = int(difference / 2) + 11  # add 11 bases for type 2 restriction
-                    primerF, tmF = find_fragment_primer(tmpfrag_1, offset)
-                    primerR, tmR = find_fragment_primer(tmpfrag_2.reverse_complement(), (difference - offset + 22))
+                    primerF, tmF = find_fragment_primer(tmpfrag_1,25)
+                    primerR, tmR = find_fragment_primer(tmpfrag_2.reverse_complement(),25)
                 group_oligos = []
                 for sequence in dms_sequences: # add barcodes to the fragments to make the oligos
                     if insert or delete:

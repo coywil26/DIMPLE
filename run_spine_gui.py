@@ -10,11 +10,7 @@ from tkinter.tix import Balloon
 
 def run():
     if app.wDir is None:
-        if '/' in app.geneFile:
-            app.wDir = app.geneFile.rsplit('/', 1)[0]+'/'
-            app.geneFile = app.geneFile.rsplit('/', 1)[1]
-        else:
-            app.wDir = ''
+        app.wDir = app.geneFile.rsplit('/', 1)[0]+'/'
 
     if any([x not in ['A', 'C', 'G', 'T', 'a', 'c', 'g', 't'] for x in app.handle.get()]):
         raise ValueError('Genetic handle contains non nucleic bases')
@@ -38,14 +34,22 @@ def run():
     else:
         SPINEgene.usage = 'human'
 
-    OLS = addgene(app.wDir+app.geneFile)
+    OLS = addgene(app.geneFile)
 
     if app.matchSequences.get() == 'match':
         align_genevariation(OLS)
     if app.mutationType.get() == 0:
         generate_DIS_fragments(OLS, int(app.overlap.get()), app.wDir)
     elif app.mutationType.get() == 1:
-        generate_DMS_fragments(OLS, int(app.overlap.get()), app.include_substitutions, app.insertions.get().split(','), [int(x) for x in app.deletions.get().split(',')], app.wDir)
+        if app.delete.get() == 0:
+            deletions = 0
+        else:
+            deletions = [int(x) for x in app.deletions.get().split(',')]
+        if app.insert.get() == 0:
+            insertions = 0
+        else:
+            insertions = app.insertions.get().split(',')
+        generate_DMS_fragments(OLS, int(app.overlap.get()), app.include_substitutions, insertions, deletions, app.wDir)
     else:
         raise AttributeError('Did not select type of mutation')
     post_qc(OLS)
@@ -64,6 +68,8 @@ class Application(tk.Frame):
         self.mutationType = tk.IntVar()
         self.usage = tk.IntVar()
         self.include_substitutions = tk.IntVar()
+        self.delete = tk.IntVar()
+        self.insert = tk.IntVar()
 
         self.wDir_file = tk.Button(self, text='Working Directory', command=self.browse_wDir)
         self.wDir_file.pack()
@@ -84,7 +90,7 @@ class Application(tk.Frame):
         self.fragmentLen.pack()
 
         tk.Label(self, text='Fragment Overlap').pack()
-        self.overlap = tk.Entry(self, textvariable=tk.StringVar(self, '0'))
+        self.overlap = tk.Entry(self, textvariable=tk.StringVar(self, '3'))
         self.overlap.pack()
 
         tk.Label(self, text='Barcode Start position').pack()
@@ -96,18 +102,19 @@ class Application(tk.Frame):
         self.restriction_sequence.pack()
 
         tk.Label(self, text='Sequences to avoid').pack()
-        self.avoid_sequence = tk.Entry(self, textvariable=tk.StringVar(self, 'CGTCTC, GGTCTC'))
+        self.avoid_sequence = tk.Entry(self, width=50, textvariable=tk.StringVar(self, 'CGTCTC, GGTCTC'))
         self.avoid_sequence.pack()
 
         tk.Label(self, text='Insertion Handle').pack()
-        self.handle = tk.Entry(self, textvariable=tk.StringVar(self, 'AGCGGGAGACCGGGGTCTCTGAGC'))
+        self.handle = tk.Entry(self, width=50, textvariable=tk.StringVar(self, 'AGCGGGAGACCGGGGTCTCTGAGC'))
         self.handle.pack()
 
         tk.Label(self, text='Type of mutations to generate', font="helvetica 12 underline").pack()
-        self.DMS_check = tk.Radiobutton(self, text="Deep Mutational Scan", variable=self.mutationType, value=1)
-        self.DMS_check.pack()
         self.DIS_check = tk.Radiobutton(self, text="Deep Insertional Scan", variable=self.mutationType, value=0)
         self.DIS_check.pack()
+        self.DMS_check = tk.Radiobutton(self, text="Deep Mutational Scan", variable=self.mutationType, value=1)
+        self.DMS_check.pack()
+        self.DIS_check.select()
 
         tk.Label(self, text='Codon Usage', font="helvetica 12 underline").pack()
         self.ecoli_check = tk.Radiobutton(self, text="E. coli", variable=self.usage, value=1)
@@ -116,12 +123,16 @@ class Application(tk.Frame):
         self.human_check.pack()
 
         tk.Label(self, text='Settings for Indels', font="helvetica 12 underline").pack()
-        tk.Label(self, text='List of deletions').pack()
-        self.deletions = tk.Entry(self, textvariable=tk.StringVar(self, '3,6'))
+        self.delete_check = tk.Radiobutton(self, text="List of Deletions", variable=self.delete, value=1)
+        self.delete_check.pack()
+        self.delete_check.deselect()
+        self.deletions = tk.Entry(self, width=50, textvariable=tk.StringVar(self, '3,6'))
         self.deletions.pack()
 
-        tk.Label(self, text='List of insertions').pack()
-        self.insertions = tk.Entry(self, textvariable=tk.StringVar(self, 'GGG,CCC'))
+        self.insert_check = tk.Radiobutton(self, text="List of Insertions", variable=self.insert, value=1)
+        self.insert_check.pack()
+        self.insert_check.deselect()
+        self.insertions = tk.Entry(self, width=50, textvariable=tk.StringVar(self, 'GGG,CCC'))
         self.insertions.pack()
 
         self.include_sub_check = tk.Checkbutton(self, text='Include Substitutions', variable=self.include_substitutions)
@@ -132,7 +143,7 @@ class Application(tk.Frame):
 
         self.run = tk.Button(self, text='Run SPINE', command=run).pack()
 
-        self.output = tk.Text(self, height=10, width=60).pack()
+        #self.output = tk.Text(self, height=10, width=60).pack()
 
     def browse_wDir(self):
         self.wDir = filedialog.askdirectory(title="Select a File")

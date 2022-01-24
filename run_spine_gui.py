@@ -17,13 +17,17 @@ def run():
 
     SPINEgene.handle = app.handle.get()
     SPINEgene.synth_len = int(app.oligoLen.get())
-    if app.fragmentLen.get() != '':
+    overlapL = int(app.overlap.get())
+    overlapR = int(app.overlap.get())
+    if app.delete.get():
+        overlapR = max([int(x) for x in app.deletions.get().split(',')])+overlapR
+    if app.fragmentLen.get() != 'auto':
         SPINEgene.maxfrag = int(app.fragmentLen.get())
     else:
-        SPINEgene.maxfrag = int(app.oligoLen.get()) - 62 - int(app.overlap.get())  # 62 allows for cutsites and barcodes
+        SPINEgene.maxfrag = int(app.oligoLen.get()) - 62 - overlapL - overlapR  # 62 allows for cutsites and barcodes
 
     #adjust primer primerBuffer
-    SPINEgene.primerBuffer += int(app.overlap.get())
+    SPINEgene.primerBuffer += overlapL
 
     SPINEgene.barcodeF = SPINEgene.barcodeF[int(app.barcode_start.get()):]
     SPINEgene.barcodeR = SPINEgene.barcodeR[int(app.barcode_start.get()):]
@@ -39,7 +43,7 @@ def run():
     if app.matchSequences.get() == 'match':
         align_genevariation(OLS)
     if app.mutationType.get() == 0:
-        generate_DIS_fragments(OLS, int(app.overlap.get()), app.wDir)
+        generate_DIS_fragments(OLS, overlapL, app.wDir)
     elif app.mutationType.get() == 1:
         if app.delete.get() == 0:
             deletions = 0
@@ -49,7 +53,7 @@ def run():
             insertions = 0
         else:
             insertions = app.insertions.get().split(',')
-        generate_DMS_fragments(OLS, int(app.overlap.get()), app.include_substitutions, insertions, deletions, app.wDir)
+        generate_DMS_fragments(OLS, overlapL, overlapR, app.include_substitutions, insertions, deletions, app.wDir)
     else:
         raise AttributeError('Did not select type of mutation')
     post_qc(OLS)
@@ -86,10 +90,10 @@ class Application(tk.Frame):
         self.oligoLen.pack()
 
         tk.Label(self, text='Fragment Length').pack()
-        self.fragmentLen = tk.Entry(self, textvariable=tk.StringVar(self, ''))
+        self.fragmentLen = tk.Entry(self, textvariable=tk.StringVar(self, 'auto'))
         self.fragmentLen.pack()
 
-        tk.Label(self, text='Fragment Overlap').pack()
+        tk.Label(self, text='Fragment Overlap (This will change if deletions are selected)').pack()
         self.overlap = tk.Entry(self, textvariable=tk.StringVar(self, '3'))
         self.overlap.pack()
 
@@ -110,7 +114,7 @@ class Application(tk.Frame):
         self.handle.pack()
 
         tk.Label(self, text='Type of mutations to generate', font="helvetica 12 underline").pack()
-        self.DIS_check = tk.Radiobutton(self, text="Deep Insertional Scan", variable=self.mutationType, value=0)
+        self.DIS_check = tk.Radiobutton(self, text="Deep Insertional Scan (Genetic Handle)", variable=self.mutationType, value=0)
         self.DIS_check.pack()
         self.DMS_check = tk.Radiobutton(self, text="Deep Mutational Scan", variable=self.mutationType, value=1)
         self.DMS_check.pack()
@@ -122,24 +126,28 @@ class Application(tk.Frame):
         self.human_check = tk.Radiobutton(self, text="Human", variable=self.usage, value=0)
         self.human_check.pack()
 
+        def DMS_ON():
+            if self.delete.get() or self.insert.get():
+                self.DMS_check.select()
+
         tk.Label(self, text='Settings for Indels', font="helvetica 12 underline").pack()
-        self.delete_check = tk.Radiobutton(self, text="List of Deletions", variable=self.delete, value=1)
+        self.delete_check = tk.Checkbutton(self, text="List of Deletions", variable=self.delete, command=DMS_ON)
         self.delete_check.pack()
         self.delete_check.deselect()
         self.deletions = tk.Entry(self, width=50, textvariable=tk.StringVar(self, '3,6'))
         self.deletions.pack()
 
-        self.insert_check = tk.Radiobutton(self, text="List of Insertions", variable=self.insert, value=1)
+        self.insert_check = tk.Checkbutton(self, text="List of Insertions", variable=self.insert, command=DMS_ON)
         self.insert_check.pack()
         self.insert_check.deselect()
-        self.insertions = tk.Entry(self, width=50, textvariable=tk.StringVar(self, 'GGG,CCC'))
+        self.insertions = tk.Entry(self, width=50, textvariable=tk.StringVar(self, 'GGG,GGGGGG'))
         self.insertions.pack()
 
         self.include_sub_check = tk.Checkbutton(self, text='Include Substitutions', variable=self.include_substitutions)
         self.include_sub_check.pack()
 
-        self.matchSequences_check = tk.Checkbutton(self, text='Match Sequences', variable=self.matchSequences)
-        self.matchSequences_check.pack()
+        #self.matchSequences_check = tk.Checkbutton(self, text='Match Sequences', variable=self.matchSequences)
+        #self.matchSequences_check.pack()
 
         self.run = tk.Button(self, text='Run SPINE', command=run).pack()
 
@@ -151,12 +159,14 @@ class Application(tk.Frame):
             self.wDir_file.config(bg='green', activebackground='green', relief=tk.SUNKEN)
         else:
             self.wDir = None
+
     def browse_gene(self):
         self.geneFile = filedialog.askopenfilename(title="Select a File")
         if self.geneFile != '':
             self.gene_file.config(bg='green', activebackground='green', relief=tk.SUNKEN)
         else:
             self.geneFile = None
+
 
 if __name__ == "__main__":
     root = tk.Tk()

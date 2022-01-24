@@ -73,7 +73,7 @@ class SPINEgene:
     primerBuffer = 30  # This extends the sequence beyond the ORF for a primer. Must be greater than 30
     allhangF = []
     allhangR = []
-    primerTm = (55.5, 57)  # Melting temperature limits for primers
+    primerTm = (55.5, 59)  # Melting temperature limits for primers
     # Load Barcodes
     dataDirectory = os.path.abspath(os.path.dirname(__file__))
     try:
@@ -619,15 +619,15 @@ def switch_fragmentsize(gene, detectedsite, OLS):
     return skip
 
 
-def check_overhangs(gene, OLS, overlap):
+def check_overhangs(gene, OLS, overlapL, overlapR):
     # Force all overhangs to be different within a gene (no more than 2 matching in a row)
     if not isinstance(gene, SPINEgene):
         raise TypeError('Not an instance of the SPINEgene class')
     while True:
         overhang = []
         for idx, y in enumerate(gene.breaklist):
-            overhang.append([gene.seq[y[0] - 4 - overlap : y[0] - overlap], idx])  # Forward overhang
-            overhang.append([gene.seq[y[1] + overlap : y[1] + 4 + overlap], idx + 1])  # Reverse overhang
+            overhang.append([gene.seq[y[0] - 4 - overlapL : y[0] - overlapR], idx])  # Forward overhang
+            overhang.append([gene.seq[y[1] + overlapL : y[1] + 4 + overlapR], idx + 1])  # Reverse overhang
         detectedsites = set()  # stores matching overhangs
         for i in range(len(overhang)):  # check each overhang for matches
             for j in [x for x in range(len(overhang)) if x != i]:  # permutate over every overhang combination to find matches
@@ -651,7 +651,7 @@ def generate_DIS_fragments(OLS, overlap, folder=''):
         print('--------------------------------- Analyzing Gene:' + gene.geneid + ' ---------------------------------')
         if not any([tmp in finishedGenes for tmp in gene.linked]):  # only run analysis for one of the linked genes
             # Quality Control for overhangs from the same gene
-            check_overhangs(gene, OLS, overlap)
+            check_overhangs(gene, OLS, overlap, overlap)
         # Generate oligos and Primers
         idx = 0 # index for fragment
         totalcount = 0
@@ -730,7 +730,11 @@ def generate_DIS_fragments(OLS, overlap, folder=''):
                     # primers for amplifying subpools
                     offset = int(difference / 2) + 11  # add 11 bases for type 2 restriction
                     primerF, tmF = find_fragment_primer(tmpfrag, offset)
+                    if len(primerF) > 21:
+                        tmF = 0
                     primerR, tmR = find_fragment_primer(tmpfrag.reverse_complement(), (difference - offset + 22))
+                    if len(primerR) > 21:
+                        tmR = 0
 
                 # Create a gene fragment for each insertion point. Important! This loop does all the work. Change this loop to edit mutation type
                 for i in range(offset + overlap, offset + gene.fragsize[idx] + overlap, 3):  # Could replace fragsize with frag[1]-frag[0]
@@ -766,7 +770,7 @@ def generate_DIS_fragments(OLS, overlap, folder=''):
         finishedGenes.extend([ii])
 
 
-def generate_DMS_fragments(OLS, overlap, dms=True, insert=False, delete=False, folder=''):
+def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, delete=False, folder=''):
     # dms set to true for subsitition mutations
     # insert set to a list of insertions
     # delete set to a list of numbers of symmetrical deletions
@@ -776,7 +780,7 @@ def generate_DMS_fragments(OLS, overlap, dms=True, insert=False, delete=False, f
     finishedGenes = []
     # Adjust fragments to account for variable sized fragments with the same subpool barcodes/primers
     if insert:
-        SPINEgene.maxfrag = SPINEgene.synth_len - 68 - max([len(x) for x in insert])  # increase barcode space to allow for variable sized fragments within an oligo
+        SPINEgene.maxfrag = SPINEgene.synth_len - 68 - max([len(x) for x in insert]) - overlapL - overlapR  # increase barcode space to allow for variable sized fragments within an oligo
         for gene in OLS:
             switch_fragmentsize(gene, 1, OLS)
     for ii, gene in enumerate(OLS):
@@ -786,7 +790,7 @@ def generate_DMS_fragments(OLS, overlap, dms=True, insert=False, delete=False, f
         tmpbreaklist = [[x[0] - 3, x[1]] for x in gene.breaklist]  # Shift gene fragments to mutate first codon
         if not any([tmp in finishedGenes for tmp in gene.linked]):  # only run analysis for one of the linked genes
             # Quality Control for overhangs from the same gene
-            check_overhangs(gene, OLS, overlap)
+            check_overhangs(gene, OLS, overlapL, overlapR)
         # Generate oligos and Primers
         idx = 0 # index for fragment
         totalcount = 0
@@ -811,11 +815,11 @@ def generate_DMS_fragments(OLS, overlap, dms=True, insert=False, delete=False, f
             if not any([tmp in finishedGenes for tmp in gene.linked]):  # only run analysis for one of the linked genes
                 # Primers for gene amplification with addition of BsmBI site
                 genefrag = gene.seq[frag[0]-SPINEgene.primerBuffer : frag[0]+SPINEgene.primerBuffer]
-                reverse, tmR, sR = find_geneprimer(genefrag, 15, SPINEgene.primerBuffer+1-overlap) # 15 is just a starting point
+                reverse, tmR, sR = find_geneprimer(genefrag, 15, SPINEgene.primerBuffer+1-overlapL) # 15 is just a starting point
                 genefrag = gene.seq[frag[1]-SPINEgene.primerBuffer: frag[1]+SPINEgene.primerBuffer]
-                forward, tmF, sF = find_geneprimer(genefrag.reverse_complement(), 15, SPINEgene.primerBuffer+1-overlap)
-                tmpr = check_nonspecific(reverse, gene.seq, frag[0] - len(gene.seq) + 10 - overlap) # negative numbers look for reverse primers
-                tmpf = check_nonspecific(forward, gene.seq, frag[1] - 10 + overlap)
+                forward, tmF, sF = find_geneprimer(genefrag.reverse_complement(), 15, SPINEgene.primerBuffer+1-overlapR)
+                tmpr = check_nonspecific(reverse, gene.seq, frag[0] - len(gene.seq) + 10 - overlapL) # negative numbers look for reverse primers
+                tmpf = check_nonspecific(forward, gene.seq, frag[1] - 10 + overlapR)
                 if tmpf or tmpr:
                     # swap size with another fragment
                     if tmpf:
@@ -860,8 +864,8 @@ def generate_DMS_fragments(OLS, overlap, dms=True, insert=False, delete=False, f
                 tmF = 0
                 tmR = 0
                 count = 0
-                tmpseq = gene.seq[frag[0]-4-overlap : frag[1]+4+overlap].ungap('-')  # extract sequence for oligo fragment include an extra 4 bases for BsmBI cut site and overlap
-                offset = 4 + overlap
+                tmpseq = gene.seq[frag[0]-4-overlapL : frag[1]+4+overlapR].ungap('-')  # extract sequence for oligo fragment include an extra 4 bases for BsmBI cut site and overlap
+                offset = 4 + overlapL
                 ################# Create the mutations
                 # DMS
                 dms_sequences = []
@@ -937,16 +941,27 @@ def generate_DMS_fragments(OLS, overlap, dms=True, insert=False, delete=False, f
                     tmpfrag_2 = tmpseq[-4:] + "G" + SPINEgene.cutsite.reverse_complement() + barR.seq.reverse_complement()[0:difference - int(difference / 2)]
                     # primers for amplifying subpools
                     offset = int(difference / 2) + 11  # add 11 bases for type 2 restriction
-                    primerF, tmF = find_fragment_primer(tmpfrag_1,25)
-                    primerR, tmR = find_fragment_primer(tmpfrag_2.reverse_complement(),25)
+                    primerF, tmF = find_fragment_primer(tmpfrag_1, 25)
+                    if len(primerF) > 21:
+                        tmF = 0
+                    primerR, tmR = find_fragment_primer(tmpfrag_2.reverse_complement(), 25)
+                    if len(primerR) > 21:
+                        tmR = 0
                 group_oligos = []
-                for sequence in dms_sequences: # add barcodes to the fragments to make the oligos
+                for sequence in dms_sequences:  # add barcodes to the fragments to make the oligos
                     if insert or delete:
                         difference = SPINEgene.synth_len - len(sequence.seq[4:-4]) - 22 # how many bases need to be added to make oligo correct length
-                        offset = int(difference/2) # force it to be a integer
+                        offset = int(difference/2)  # force it to be a integer
                         combined_sequence = tmpfrag_1[:offset] + tmpfrag_1[-11:] + sequence.seq[4:-4] + tmpfrag_2[:11] + tmpfrag_2[-(difference - offset):]
                     else:
                         combined_sequence = tmpfrag_1 + sequence.seq[4:-4] + tmpfrag_2
+                    if primerF not in combined_sequence or primerR.reverse_complement() not in combined_sequence:
+                        print(primerF)
+                        print(combined_sequence)
+                        print('---')
+                        print(combined_sequence.reverse_complement())
+                        print(primerR)
+                        raise Exception('primers no longer bind to oligo')
                     if gene.doublefrag == 0:
                         gene.oligos.append(SeqRecord(combined_sequence, id=sequence.id, description=''))
                     else:

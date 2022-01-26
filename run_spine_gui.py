@@ -20,7 +20,7 @@ def run():
     overlapL = int(app.overlap.get())
     overlapR = int(app.overlap.get())
     if app.delete.get():
-        overlapR = max([int(x) for x in app.deletions.get().split(',')])+overlapR
+        overlapR = max([int(x) for x in app.deletions.get().split(',')]) + overlapR - 3
     if app.fragmentLen.get() != 'auto':
         SPINEgene.maxfrag = int(app.fragmentLen.get())
     else:

@@ -53,7 +53,7 @@ def run():
             insertions = 0
         else:
             insertions = app.insertions.get().split(',')
-        generate_DMS_fragments(OLS, overlapL, overlapR, app.include_substitutions, insertions, deletions, app.wDir)
+        generate_DMS_fragments(OLS, overlapL, overlapR, app.include_substitutions.get(), insertions, deletions, app.wDir)
     else:
         raise AttributeError('Did not select type of mutation')
     post_qc(OLS)
@@ -113,10 +113,13 @@ class Application(tk.Frame):
         self.handle = tk.Entry(self, width=50, textvariable=tk.StringVar(self, 'AGCGGGAGACCGGGGTCTCTGAGC'))
         self.handle.pack()
 
+        def sub_ON():
+            self.include_substitutions.set(1)
+
         tk.Label(self, text='Type of mutations to generate', font="helvetica 12 underline").pack()
         self.DIS_check = tk.Radiobutton(self, text="Deep Insertional Scan (Genetic Handle)", variable=self.mutationType, value=0)
         self.DIS_check.pack()
-        self.DMS_check = tk.Radiobutton(self, text="Deep Mutational Scan", variable=self.mutationType, value=1)
+        self.DMS_check = tk.Radiobutton(self, text="Deep Mutational Scan", variable=self.mutationType, value=1, command=sub_ON)
         self.DMS_check.pack()
         self.DIS_check.select()
 
@@ -145,6 +148,7 @@ class Application(tk.Frame):
 
         self.include_sub_check = tk.Checkbutton(self, text='Include Substitutions', variable=self.include_substitutions)
         self.include_sub_check.pack()
+        self.include_sub_check.deselect()
 
         #self.matchSequences_check = tk.Checkbutton(self, text='Match Sequences', variable=self.matchSequences)
         #self.matchSequences_check.pack()

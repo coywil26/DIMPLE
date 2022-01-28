@@ -779,8 +779,9 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
     # Loop through each gene or gene variation
     finishedGenes = []
     # Adjust fragments to account for variable sized fragments with the same subpool barcodes/primers
-    if insert:
-        SPINEgene.maxfrag = SPINEgene.synth_len - 72 - max([len(x) for x in insert]) - (overlapL*2)  # increase barcode space to allow for variable sized fragments within an oligo
+    if insert or delete:
+        SPINEgene.maxfrag = SPINEgene.synth_len - 64 - max([len(x) for x in insert]) - overlapL - overlapR  # increase barcode space to allow for variable sized fragments within an oligo
+        print('New max fragment:' + str(SPINEgene.maxfrag))
         for gene in OLS:
             switch_fragmentsize(gene, 1, OLS)
     for ii, gene in enumerate(OLS):

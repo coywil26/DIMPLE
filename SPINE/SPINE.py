@@ -26,6 +26,7 @@ import os
 from math import ceil
 import itertools
 from difflib import SequenceMatcher
+from random import randrange
 # from Bio import AlignIO
 # from Bio.Align.Applications import MafftCommandline
 
@@ -546,14 +547,22 @@ def switch_fragmentsize(gene, detectedsite, OLS):
         gene.unique_Frag = [True]*len(gene.fragsize)
     else:
         gene.problemsites.add(gene.breaksites[detectedsite])
-    if all(item == SPINEgene.maxfrag for item in gene.fragsize) or any(
-            item > SPINEgene.maxfrag for item in gene.fragsize):
-        tmpmax = SPINEgene.maxfrag + 3
-    else:
-        tmpmax = SPINEgene.maxfrag
+    # if all(item == SPINEgene.maxfrag for item in gene.fragsize) or any(
+    #         item > SPINEgene.maxfrag for item in gene.fragsize):
+    #     tmpmax = SPINEgene.maxfrag + 3
+    # else:
+    tmpmax = SPINEgene.maxfrag
     while True:
         if count > len(gene.breaksites):
-            tmpmax = SPINEgene.maxfrag + 3
+            # Randomly shift a fragment
+            detectedsite = randrange(len(gene.breaksites))
+            if gene.fragsize[detectedsite] < tmpmax:
+                shift = 3
+            else:
+                shift = -3
+            gene.breaksites[detectedsite] = gene.breaksites[detectedsite] + shift
+            gene.fragsize = [j - i for i, j in zip(gene.breaksites[:-1], gene.breaksites[1:])]
+            gene.breaklist = [[x + 3, x + gene.fragsize[idx]] for idx, x in enumerate(gene.breaksites[:-1])]
         count += 1
         # Find connecting Fragments
         if detectedsite == 0 or detectedsite == len(gene.fragsize):

@@ -884,11 +884,14 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                         wt_codon = tmpseq[i:i + 3].upper()
                         wt = [name for name, codon in gene.SynonymousCodons.items() if wt_codon in codon]
                         # note that we also create synonymous wt codons
-                        for jk in (x for x in gene.aminoacids): # if x not in wt[0]):
-                            p = [gene.usage[aa] for aa in gene.SynonymousCodons[jk] if aa not in wt_codon]  # Find probabilities but not wild type codon
+                        for jk in (x for x in gene.aminoacids):  # if x not in wt[0]):
+                            codons = [aa for aa in gene.SynonymousCodons[jk] if aa not in wt_codon]
+                            p = [gene.usage[aa] for aa in codons]  # Find probabilities but not wild type codon
                             p = [xp if xp > 0.1 else 0 for xp in p]  # Remove probabilities below 0.1
                             p = [xp / sum(p) for xp in p]  # Normalize to 1
-                            mutation = np.random.choice(gene.SynonymousCodons[jk], 1, p)  # Pick one codon
+                            if not p:
+                                continue
+                            mutation = np.random.choice(codons, 1, p)  # Pick one codon
                             xfrag = tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]  # Add mutation to fragment
                             # Check each cassette for more than 2 BsmBI and 2 BsaI sites
                             while any([(xfrag.upper().count(x) + xfrag.upper().count(x.reverse_complement())) > 2 for x in SPINEgene.avoid_sequence]):

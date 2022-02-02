@@ -555,7 +555,7 @@ def switch_fragmentsize(gene, detectedsite, OLS):
     while True:
         if count > len(gene.breaksites):
             # Randomly shift a fragment
-            detectedsite = randrange(len(gene.breaksites))
+            detectedsite = randrange(len(gene.fragsize))
             if gene.fragsize[detectedsite] < tmpmax:
                 shift = 3
             else:

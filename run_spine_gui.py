@@ -46,11 +46,11 @@ def run():
         generate_DIS_fragments(OLS, overlapL, app.wDir)
     elif app.mutationType.get() == 1:
         if app.delete.get() == 0:
-            deletions = 0
+            deletions = False
         else:
             deletions = [int(x) for x in app.deletions.get().split(',')]
         if app.insert.get() == 0:
-            insertions = 0
+            insertions = False
         else:
             insertions = app.insertions.get().split(',')
         generate_DMS_fragments(OLS, overlapL, overlapR, app.include_substitutions.get(), insertions, deletions, app.wDir)

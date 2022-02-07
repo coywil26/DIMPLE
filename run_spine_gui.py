@@ -33,6 +33,11 @@ def run():
     SPINEgene.barcodeR = SPINEgene.barcodeR[int(app.barcode_start.get()):]
     SPINEgene.cutsite = Seq(app.restriction_sequence.get())
     SPINEgene.avoid_sequence = [Seq(x) for x in app.avoid_sequence.get().split(',')]
+    if app.mutationType.get() == 1:
+        SPINEgene.dms = True
+    else:
+        SPINEgene.dms = False
+
     if app.usage:
         SPINEgene.usage = 'ecoli'
     else:

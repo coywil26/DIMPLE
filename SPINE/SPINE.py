@@ -294,7 +294,7 @@ class SPINEgene:
         if isinstance(value, list):
             if any([(x - SPINEgene.primerBuffer) % 3 != 0 for x in value]):
                 raise ValueError('New Breaksites are not divisible by 3')
-            if value[0] != self.breaksites[0] or value[-1] != self.breaksites[-1]:
+            if (value[0] != self.breaksites[0] or value[-1] != self.breaksites[-1]) and not SPINEgene.dms:
                 if input('Beginning and End of gene have changed. Are you sure you want to continue? (y/n)') != 'y':
                     raise Exception('Canceled user set break sites')
             self.__breaksites = value
@@ -523,6 +523,29 @@ def check_nonspecific(primer, fragment, point):
                 non.append(False)
     return sum(non)
 
+def recalculate_num_fragments(gene):
+    num = int(round(((gene.end - gene.start) / float(SPINEgene.maxfrag)) + 0.499999999))  # total bins needed (rounded up)
+    insertionsites = range(gene.start + 3, gene.end + 3, 3)
+    gene.fragsize = [len(insertionsites[i::num]) * 3 for i in list(range(num))]
+    total = SPINEgene.primerBuffer
+    breaksites = [SPINEgene.primerBuffer]
+    for x in gene.fragsize:
+        total += x
+        breaksites.extend([total])
+    if SPINEgene.dms:
+        tmpbreaklist = []
+        for idx, x in enumerate(breaksites[:-1]):
+            if idx:
+                tmpbreaklist.append([x, x + gene.fragsize[idx]])
+            else:
+                tmpbreaklist.append([x + 3, x + gene.fragsize[idx]])
+        gene.breaklist =tmpbreaklist
+    else:
+        gene.breaklist = [[x + 3, x + gene.fragsize[idx]] for idx, x in enumerate(breaksites[:-1])]  # insertion site to insertion site
+    gene.problemsites = set()
+    gene.breaksites = breaksites
+    gene.unique_Frag = [True] * len(gene.fragsize)
+    return gene
 
 def switch_fragmentsize(gene, detectedsite, OLS):
     if not isinstance(gene, SPINEgene):
@@ -530,51 +553,57 @@ def switch_fragmentsize(gene, detectedsite, OLS):
     start = gene.start
     skip = False
     count = 0
+    count2 = 0
     print('Non specific Fragment:' + str(detectedsite))
-    if len(gene.fragsize)*SPINEgene.maxfrag < len(gene.seq): # if the maxfrag has changed and it is impossible to split the gene into x number of fragments it should recalculate the number of fragments
-        num = int(round(((gene.end - gene.start) / float(SPINEgene.maxfrag)) + 0.499999999))  # total bins needed (rounded up)
-        insertionsites = range(gene.start + 3, gene.end + 3, 3)
-        gene.fragsize = [len(insertionsites[i::num]) * 3 for i in list(range(num))]
-        total = SPINEgene.primerBuffer
-        breaksites = [SPINEgene.primerBuffer]
-        for x in gene.fragsize:
-            total += x
-            breaksites.extend([total])
-        gene.breaklist = [[x + 3, x + gene.fragsize[idx]] for idx, x in
-                          enumerate(breaksites[:-1])]  # insertion site to insertion site
-        gene.problemsites = set()
-        gene.breaksites = breaksites
-        gene.unique_Frag = [True]*len(gene.fragsize)
+    if len(gene.fragsize)*gene.maxfrag < len(gene.seq)-gene.primerBuffer*2:  # if the maxfrag has changed and it is impossible to split the gene into x number of fragments it should recalculate the number of fragments
+        gene = recalculate_num_fragments(gene)
     else:
         gene.problemsites.add(gene.breaksites[detectedsite])
-    # if all(item == SPINEgene.maxfrag for item in gene.fragsize) or any(
-    #         item > SPINEgene.maxfrag for item in gene.fragsize):
-    #     tmpmax = SPINEgene.maxfrag + 3
-    # else:
-    tmpmax = SPINEgene.maxfrag
+    if all(item == gene.maxfrag for item in gene.fragsize) or any(item > gene.maxfrag for item in gene.fragsize):
+        gene.maxfrag += -1
     while True:
         if count > len(gene.breaksites):
             # Randomly shift a fragment
-            detectedsite = randrange(len(gene.fragsize))
-            if gene.fragsize[detectedsite] < tmpmax:
-                shift = 3
-            else:
+            count = 0
+            count2 += 1
+            detectedsite = randrange(1, len(gene.breaksites)-1)  # dont change beginning or end
+            if gene.fragsize[detectedsite-1] == gene.maxfrag:
                 shift = -3
+            else:
+                if randrange(0, 2):
+                    shift = 3
+                else:
+                    shift = -3
             gene.breaksites[detectedsite] = gene.breaksites[detectedsite] + shift
             gene.fragsize = [j - i for i, j in zip(gene.breaksites[:-1], gene.breaksites[1:])]
-            gene.breaklist = [[x + 3, x + gene.fragsize[idx]] for idx, x in enumerate(gene.breaksites[:-1])]
+            if SPINEgene.dms:
+                tmpbreaklist = []
+                for idx, x in enumerate(gene.breaksites[:-1]):
+                    if idx:
+                        tmpbreaklist.append([x, x + gene.fragsize[idx]])
+                    else:
+                        tmpbreaklist.append([x + 3, x + gene.fragsize[idx]])
+                gene.breaklist = tmpbreaklist
+            else:
+                gene.breaklist = [[x + 3, x + gene.fragsize[idx]] for idx, x in enumerate(gene.breaksites[:-1])]
+            if count2 > len(gene.breaklist)*3:
+                gene.maxfrag += -1  # try to change for only this gene...
+                if len(gene.fragsize) * gene.maxfrag < len(gene.seq):
+                    gene = recalculate_num_fragments(gene)
+                    count = 0
+                    count2 = 0
         count += 1
         # Find connecting Fragments
         if detectedsite == 0 or detectedsite == len(gene.fragsize):
             print('Issue with primer on end of gene')
             skip = True
             break
-        elif gene.fragsize[detectedsite] == gene.fragsize[detectedsite - 1] and gene.fragsize[detectedsite] >= tmpmax:
-            if all(item >= tmpmax for item in gene.fragsize[detectedsite + 1:]) and not all(item >= tmpmax for item in gene.fragsize[:detectedsite - 1]):
+        if gene.fragsize[detectedsite] == gene.fragsize[detectedsite - 1] and gene.fragsize[detectedsite] >= gene.maxfrag:
+            if all(item >= gene.maxfrag for item in gene.fragsize[detectedsite + 1:]) and not all(item >= gene.maxfrag for item in gene.fragsize[:detectedsite - 1]):
                 shift = 3
                 while gene.breaksites[detectedsite] + shift in gene.problemsites:
                     shift += 3
-            if all(item >= tmpmax for item in gene.fragsize[:detectedsite - 1]) and not all(item >= tmpmax for item in gene.fragsize[detectedsite + 1:]):
+            if all(item >= gene.maxfrag for item in gene.fragsize[:detectedsite - 1]) and not all(item >= gene.maxfrag for item in gene.fragsize[detectedsite + 1:]):
                 shift = -3
                 while gene.breaksites[detectedsite] + shift in gene.problemsites:
                     shift += -3
@@ -595,7 +624,7 @@ def switch_fragmentsize(gene, detectedsite, OLS):
             shift = -3
             while gene.breaksites[detectedsite] + shift in gene.problemsites:
                 shift += -3
-        elif gene.fragsize[detectedsite] == gene.fragsize[detectedsite - 1] and gene.fragsize[detectedsite] < tmpmax:
+        elif gene.fragsize[detectedsite] == gene.fragsize[detectedsite - 1] and gene.fragsize[detectedsite] < gene.maxfrag:
             shift = -3
             while gene.breaksites[detectedsite] + shift in gene.problemsites:
                 shift = -shift
@@ -604,9 +633,18 @@ def switch_fragmentsize(gene, detectedsite, OLS):
         # Process shift and reprocess fragments
         gene.breaksites[detectedsite] = gene.breaksites[detectedsite] + shift
         gene.fragsize = [j - i for i, j in zip(gene.breaksites[:-1], gene.breaksites[1:])]
-        gene.breaklist = [[x + 3, x + gene.fragsize[idx]] for idx, x in enumerate(gene.breaksites[:-1])]
+        if SPINEgene.dms:
+            tmpbreaklist = []
+            for idx, x in enumerate(gene.breaksites[:-1]):
+                if idx:
+                    tmpbreaklist.append([x, x + gene.fragsize[idx]])
+                else:
+                    tmpbreaklist.append([x + 3, x + gene.fragsize[idx]])
+            gene.breaklist = tmpbreaklist
+        else:
+            gene.breaklist = [[x + 3, x + gene.fragsize[idx]] for idx, x in enumerate(gene.breaksites[:-1])]
         # recheck for size limit issues
-        tmpsite = [topidx for topidx, item in enumerate(gene.fragsize) if item > tmpmax]
+        tmpsite = [topidx for topidx, item in enumerate(gene.fragsize) if item > gene.maxfrag]
         if tmpsite:
             # pick which side to adjust
             if tmpsite[0] == len(gene.fragsize):
@@ -649,6 +687,7 @@ def check_overhangs(gene, OLS, overlapL, overlapR):
             skip = switch_fragmentsize(gene, detectedsite, OLS)
         else:
             break
+    return skip
 
 
 def generate_DIS_fragments(OLS, overlap, folder=''):
@@ -800,7 +839,7 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
         print('--------------------------------- Analyzing Gene:' + gene.geneid + ' ---------------------------------')
         gene.breaklist[0][0] += 3  # Do not mutate first codon
         gene.fragsize[0] += -3  # Adjust size to match breaklist
-        tmpbreaklist = [[x[0] - 3, x[1]] for x in gene.breaklist]  # Shift gene fragments to mutate first codon
+        gene.maxfrag = SPINEgene.maxfrag
         if not any([tmp in finishedGenes for tmp in gene.linked]):  # only run analysis for one of the linked genes
             # Quality Control for overhangs from the same gene
             check_overhangs(gene, OLS, overlapL, overlapR)
@@ -815,12 +854,12 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
         # missingTable = [[1]*gene.aacount]*gene.aacount
         missingFragments = []
         all_grouped_oligos = []
-        while idx < len(tmpbreaklist):
+        while idx < len(gene.breaklist):
             if idx == 0:
                 gene.oligos = []
                 gene.barPrimer = []
                 gene.genePrimer = []
-            frag = tmpbreaklist[idx]
+            frag = gene.breaklist[idx]
             grouped_oligos = []
             fragstart = str(int((frag[0] - SPINEgene.primerBuffer) / 3) + 1)
             fragend = str(int((frag[1] - SPINEgene.primerBuffer) / 3))
@@ -841,17 +880,25 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                     print("------------------ Fragment size swapped due to non-specific primers ------------------")
                     skip = switch_fragmentsize(gene, idx, OLS)
                     if skip:
+                        print("Gene primer at the end of gene has non specific annealing. Try lengthening that primer")
+                        print(forward)
+
+                        # if end of gene, try to extend primer to make it more specific?
+                        #if tmpr:
+                        #    reverse +=
+                        #if tmpf:
+                        #    forward +=
+                    else:
+                        # Quality Control for overhangs from the same gene
+                        # check_overhangs(gene, OLS)
+                        SPINEgene.barcodeF.extend(compileF)  # return unused primers
+                        SPINEgene.barcodeR.extend(compileR)
+                        compileF = []  # reset unused primers
+                        compileR = []
+                        gene.genePrimer = []  # reset gene all primers due to nonspecific primer
+                        gene.barPrimer = []
+                        idx = 0
                         continue
-                    # Quality Control for overhangs from the same gene
-                    # check_overhangs(gene, OLS)
-                    SPINEgene.barcodeF.extend(compileF)  # return unused primers
-                    SPINEgene.barcodeR.extend(compileR)
-                    compileF = []  # reset unused primers
-                    compileR = []
-                    gene.genePrimer = []  # reset gene all primers due to nonspecific primer
-                    gene.barPrimer = []
-                    idx = 0
-                    continue
                 # Store
                 gene.genePrimer.append(SeqRecord(reverse, id=gene.geneid + "_geneP_Mut-" + str(idx + 1) + "_R",
                                                  description="Frag" + fragstart + "-" + fragend + ' ' + str(tmR) + 'C'))
@@ -1037,12 +1084,12 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                     gene.oligos.append(SeqRecord(combined_sequence2, id=combined_id, description=''))
         # Export files (fasta)
         # Missing Mutation Pairs
-        import csv
-        with open(os.path.join(folder.replace('\\', ''), gene.geneid + "_missing2Mutations.csv"), 'w') as csvfile:
-            mutationwriter = csv.writer(csvfile, delimiter=',')
-            mutationwriter.writerows(missingSites)
-            mutationwriter.writerow('Fragment Info')
-            mutationwriter.writerows(missingFragments)
+        #import csv
+        #with open(os.path.join(folder.replace('\\', ''), gene.geneid + "_missing2Mutations.csv"), 'w') as csvfile:
+        #    mutationwriter = csv.writer(csvfile, delimiter=',')
+        #    mutationwriter.writerows(missingSites)
+        #    mutationwriter.writerow('Fragment Info')
+        #    mutationwriter.writerows(missingFragments)
         # Print table?
         # from tabulate import tabulate
         # print('Missing Double Mutation Table:')
@@ -1167,7 +1214,7 @@ def post_qc(OLS):
         except AttributeError:
             print(obj.geneid + " has not been processed")
 
-    print("Running QC for barcode primer specificiy")
+    print("Running QC for barcode primer specificity")
     cassetteSet = set(all_oligos[0].id[:-6])
     uCassette = [SeqRecord(all_oligos[0].seq, id=all_oligos[0].id[:-6])]
     for idx in range(len(all_oligos)):

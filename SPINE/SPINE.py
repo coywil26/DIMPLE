@@ -732,17 +732,25 @@ def generate_DIS_fragments(OLS, overlap, folder=''):
                     print("------------------ Fragment size swapped due to non-specific primers ------------------")
                     skip = switch_fragmentsize(gene, idx, OLS)
                     if skip:
+                        print("Gene primer at the end of gene has non specific annealing. Try lengthening that primer")
+                        print(forward)
+
+                        # if end of gene, try to extend primer to make it more specific?
+                        #if tmpr:
+                        #    reverse +=
+                        #if tmpf:
+                        #    forward +=
+                    else:
+                        # Quality Control for overhangs from the same gene
+                        # check_overhangs(gene, OLS)
+                        SPINEgene.barcodeF.extend(compileF)  # return unused primers
+                        SPINEgene.barcodeR.extend(compileR)
+                        compileF = []  # reset unused primers
+                        compileR = []
+                        gene.genePrimer = []  # reset gene all primers due to nonspecific primer
+                        gene.barPrimer = []
+                        idx = 0
                         continue
-                    # Quality Control for overhangs from the same gene
-                    # check_overhangs(gene, OLS)
-                    SPINEgene.barcodeF.extend(compileF)  # return unused primers
-                    SPINEgene.barcodeR.extend(compileR)
-                    compileF = []  # reset unused primers
-                    compileR = []
-                    gene.genePrimer = []  # reset gene all primers due to nonspecific primer
-                    gene.barPrimer = []
-                    idx = 0
-                    continue
                 # Store
                 gene.genePrimer.append(SeqRecord(reverse, id=gene.geneid + "_geneP_DI-" + str(idx + 1) + "_R",
                                                  description="Frag" + fragstart + "-" + fragend + ' ' + str(tmR) + 'C'))

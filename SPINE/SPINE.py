@@ -524,7 +524,7 @@ def check_nonspecific(primer, fragment, point):
     return sum(non)
 
 def recalculate_num_fragments(gene):
-    num = int(round(((gene.end - gene.start) / float(SPINEgene.maxfrag)) + 0.499999999))  # total bins needed (rounded up)
+    num = int(round(((gene.end - gene.start) / float(gene.maxfrag)) + 0.499999999))  # total bins needed (rounded up)
     insertionsites = range(gene.start + 3, gene.end + 3, 3)
     gene.fragsize = [len(insertionsites[i::num]) * 3 for i in list(range(num))]
     total = SPINEgene.primerBuffer

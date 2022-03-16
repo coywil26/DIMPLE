@@ -937,6 +937,7 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                 ################# Create the mutations
                 # DMS
                 dms_sequences = []
+                mutations = []
                 if dms:
                     for i in range(offset, offset + frag[1] - frag[0], 3):
                         wt_codon = tmpseq[i:i + 3].upper()
@@ -956,9 +957,14 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                                 print('Found avoided sequences')  # change codon
                                 mutation = np.random.choice(gene.SynonymousCodons[jk], 1, p)  # Pick one codon
                                 xfrag = tmpseq[0:i] + mutation + tmpseq[i + 3:]
+                            mutations.append('>' wt[0] + str(int((frag[0] + i + 3 - offset - SPINEgene.primerBuffer) / 3)) + jk)
+                            mutations.append(mutation)
                             dms_sequences.append(SeqRecord(xfrag,
                                                           id=gene.geneid + "_DMS-" + str(idx + 1) + "_" + wt[0] + str(int((frag[0] + i + 3 - offset - SPINEgene.primerBuffer) / 3)) + jk,
                                                           description='Frag '+fragstart + "-" + fragend))
+                    with open(os.path.join(folder.replace('\\', ''), gene.geneid + "_mutations.csv"),'w') as file:
+                        for mut in mutations:
+                            file.write(mut+'\n')
                 if insert:
                     # insertion
                     for i in range(offset, offset + frag[1] - frag[0], 3):

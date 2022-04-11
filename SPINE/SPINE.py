@@ -159,6 +159,7 @@ class SPINEgene:
             'Tyr': ['TAT', 'TAC']}
         self.aminoacids = ['Cys', 'Asp', 'Ser', 'Gln', 'Met', 'Asn', 'Pro', 'Lys', 'Thr', 'Phe', 'Ala', 'Gly', 'Ile', 'Leu',
                       'His', 'Arg', 'Trp', 'Val', 'Glu', 'Tyr']
+        self.complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
 
         # First check for BsaI sites and BsmBI sites
         if any([gene.seq.upper().count(cut) + gene.seq.upper().count(cut.reverse_complement()) for cut in SPINEgene.avoid_sequence]):
@@ -678,7 +679,10 @@ def check_overhangs(gene, OLS, overlapL, overlapR):
         detectedsites = set()  # stores matching overhangs
         for i in range(len(overhang)):  # check each overhang for matches
             for j in [x for x in range(len(overhang)) if x != i]:  # permutate over every overhang combination to find matches
-                if overhang[i][0] == overhang[j][0] or overhang[i][0][:3] == overhang[j][0][:3] or overhang[i][0][1:] == overhang[j][0][1:]:  # no 3 matching sequences
+                if overhang[i][0] == overhang[j][0] or \
+                        overhang[i][0][:3] == overhang[j][0][:3] or \
+                        overhang[i][0][1:] == overhang[j][0][1:] or \
+                        overhang[i][0] == overhang[i][0].reverse_complement():  # no 3 matching sequences
                     detectedsites.update([overhang[i][1]])
         for detectedsite in detectedsites:
             if detectedsite == 0:
@@ -687,7 +691,7 @@ def check_overhangs(gene, OLS, overlapL, overlapR):
             skip = switch_fragmentsize(gene, detectedsite, OLS)
         else:
             break
-    return skip
+    # return skip
 
 
 def generate_DIS_fragments(OLS, overlap, folder=''):
@@ -957,14 +961,14 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                                 print('Found avoided sequences')  # change codon
                                 mutation = np.random.choice(gene.SynonymousCodons[jk], 1, p)  # Pick one codon
                                 xfrag = tmpseq[0:i] + mutation + tmpseq[i + 3:]
-                            mutations.append('>' wt[0] + str(int((frag[0] + i + 3 - offset - SPINEgene.primerBuffer) / 3)) + jk)
+                            mutations.append('>'  + wt[0] + str(int((frag[0] + i + 3 - offset - SPINEgene.primerBuffer) / 3)) + jk)
                             mutations.append(mutation)
                             dms_sequences.append(SeqRecord(xfrag,
                                                           id=gene.geneid + "_DMS-" + str(idx + 1) + "_" + wt[0] + str(int((frag[0] + i + 3 - offset - SPINEgene.primerBuffer) / 3)) + jk,
                                                           description='Frag '+fragstart + "-" + fragend))
                     with open(os.path.join(folder.replace('\\', ''), gene.geneid + "_mutations.csv"),'w') as file:
                         for mut in mutations:
-                            file.write(mut+'\n')
+                            file.write(str(mut)+'\n')
                 if insert:
                     # insertion
                     for i in range(offset, offset + frag[1] - frag[0], 3):

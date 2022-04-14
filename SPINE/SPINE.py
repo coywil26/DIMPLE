@@ -616,7 +616,10 @@ def check_overhangs(gene, OLS, overlap):
         detectedsites = set()  # stores matching overhangs
         for i in range(len(overhang)):  # check each overhang for matches
             for j in [x for x in range(len(overhang)) if x != i]:  # permutate over every overhang combination to find matches
-                if overhang[i][0] == overhang[j][0] or overhang[i][0][:3] == overhang[j][0][:3] or overhang[i][0][1:] == overhang[j][0][1:]:  # no 3 matching sequences
+                if overhang[i][0] == overhang[j][0] or \
+                        overhang[i][0][:3] == overhang[j][0][:3] or \
+                        overhang[i][0][1:] == overhang[j][0][1:] or \
+                        overhang[i][0] == overhang[i][0].reverse_complement():  # no matching overhangs or 3 base match or palindromes
                     detectedsites.update([overhang[i][1]])
         for detectedsite in detectedsites:
             if detectedsite == 0:

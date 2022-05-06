@@ -1,4 +1,4 @@
-# SPINE: Saturated Programmable INsertion Engineering
+# DIMPLE: Deep Indel Missense Programmed Library Egnineering
 ### Protein domain insertion via programmed oligo libraries
 Python script for generating oligo libraries and PCR primers for programmed domain insertion
 

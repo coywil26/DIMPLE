@@ -1,4 +1,4 @@
-# DIMPLE: Deep Indel Missense Programmed Library Egnineering
+# DIMPLE: Deep Indel Missense Programmable Library Egineering
 ### Protein domain insertion via programmed oligo libraries
 Python script for generating oligo libraries and PCR primers for programmed domain insertion
 

@@ -1,11 +1,11 @@
-# RUN SPINE
+# RUN DIMPLE
 # script for usage with command line
 
 import argparse
-from SPINE.SPINE import align_genevariation, generate_DIS_fragments, print_all, post_qc, addgene, SPINEgene, generate_DMS_fragments
+from DIMPLE.DIMPLE import align_genevariation, print_all, post_qc, addgene, DIMPLE, generate_DMS_fragments
 from Bio.Seq import Seq
 
-parser = argparse.ArgumentParser(description="SPINE Saturated Programmable INsertion Engineering")
+parser = argparse.ArgumentParser(description="DIMPLE: Deep Indel Missense Programmable Library Engineering")
 parser.add_argument('-wDir', help='Working directory for fasta files and output folder')
 parser.add_argument('-geneFile', required=True, help='Input all gene sequences including backbone in a fasta format. Place all in one fasta file. Name description can include start and end points (>gene1 start:1 end:2)')
 parser.add_argument('-handle', default='AGCGGGAGACCGGGGTCTCTGAGC', help='Genetic handle for domain insertion. This is important for defining the linker. Currently uses BsaI (4 base overhang), but this can be swapped for SapI (3 base overhang).')
@@ -18,7 +18,7 @@ parser.add_argument('-usage', default='human', help='Default is "human". Or sele
 parser.add_argument('-insertions', default=False, nargs='+', help='Enter a list of insertions (nucleotides) to make at every position. Note, you should enter multiples of 3 nucleotides to maintain reading frame')
 parser.add_argument('-deletions', default=False, nargs='+', help='Enter a list of deletions (number of nucleotides) to symmetrically delete (it will make deletions in multiples of 2x). Note you should enter multiples of 3 to maintain reading frame')
 parser.add_argument('-include_substitutions', default=True, help='If you are running DMS but only want to insert or delete AA')
-parser.add_argument('-barcode_start', default=0, help='To run SPINE multiple times, you will need to avoid using the same barcodes. This allows you to start at a different barcode.')
+parser.add_argument('-barcode_start', default=0, help='To run DIMPLE multiple times, you will need to avoid using the same barcodes. This allows you to start at a different barcode.')
 parser.add_argument('-restriction_sequence', default='CGTCTC', help='Recommended using BsmBI - CGTCTC or BsaI - GGTCTC')
 parser.add_argument('-avoid_sequence', nargs='+', default=['CGTCTC', 'GGTCTC'], help='Avoid these sequences in the backbone - BsaI and BsmBI. For multiple sequnces use a space between inputs. Example -avoid_sequence CGTCTC GGTCTC')
 args = parser.parse_args()
@@ -33,27 +33,27 @@ if args.wDir is None:
 if any([x not in ['A', 'C', 'G', 'T', 'a', 'c', 'g', 't'] for x in args.handle]):
     raise ValueError('Genetic handle contains non nucleic bases')
 
-SPINEgene.handle = args.handle
-SPINEgene.synth_len = args.oligoLen
+DIMPLE.handle = args.handle
+DIMPLE.synth_len = args.oligoLen
 if args.fragmentLen:
-    SPINEgene.maxfrag = args.fragmentLen
+    DIMPLE.maxfrag = args.fragmentLen
 else:
-    SPINEgene.maxfrag = args.oligoLen - 62 - args.overlap # 62 allows for cutsites and barcodes
+    DIMPLE.maxfrag = args.oligoLen - 62 - args.overlap  # 62 allows for cutsites and barcodes
 
-#adjust primer primerBuffer
-SPINEgene.primerBuffer += args.overlap
+#  adjust primer primerBuffer
+DIMPLE.primerBuffer += args.overlap
 
-SPINEgene.avoid_sequence = args.avoid_sequence
-SPINEgene.barcodeF = SPINEgene.barcodeF[int(args.barcode_start):]
-SPINEgene.barcodeR = SPINEgene.barcodeR[int(args.barcode_start):]
-SPINEgene.cutsite = Seq(args.restriction_sequence)
+DIMPLE.avoid_sequence = args.avoid_sequence
+DIMPLE.barcodeF = DIMPLE.barcodeF[int(args.barcode_start):]
+DIMPLE.barcodeR = DIMPLE.barcodeR[int(args.barcode_start):]
+DIMPLE.cutsite = Seq(args.restriction_sequence)
 print(args.avoid_sequence)
-SPINEgene.avoid_sequence = [Seq(x) for x in args.avoid_sequence]
+DIMPLE.avoid_sequence = [Seq(x) for x in args.avoid_sequence]
 if args.mutationType == 'DMS':
     if args.usage:
-        SPINEgene.usage = args.usage
+        DIMPLE.usage = args.usage
 else:
-    SPINEgene.usage = None
+    DIMPLE.usage = None
 
 OLS = addgene(args.wDir+'/'+args.geneFile)
 
@@ -61,10 +61,7 @@ if args.matchSequences == 'match':
     align_genevariation(OLS)
 if args.deletions:
     args.deletions = [int(x) for x in args.deletions]
-if args.mutationType == 'DIS':
-    generate_DIS_fragments(OLS, args.overlap, args.wDir)
-elif args.mutationType == 'DMS':
-    generate_DMS_fragments(OLS, args.overlap, args.include_substitutions, args.insertions, args.deletions, args.wDir)
+generate_DMS_fragments(OLS, args.overlap, args.include_substitutions, args.insertions, args.deletions, args.wDir)
 
 post_qc(OLS)
 print_all(OLS, args.wDir)

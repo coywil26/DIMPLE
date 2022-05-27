@@ -1,12 +1,11 @@
-# RUN SPINE
-# script for usage with command line
+# RUN DIMPLE
+# script for GUI
 
-import argparse
-from SPINE.SPINE import align_genevariation, generate_DIS_fragments, print_all, post_qc, addgene, SPINEgene, generate_DMS_fragments
+from DIMPLE.DIMPLE import align_genevariation, print_all, post_qc, addgene, DIMPLE, generate_DMS_fragments
 from Bio.Seq import Seq
 import tkinter as tk
 from tkinter import filedialog
-from tkinter.tix import Balloon
+
 
 def run():
     if app.wDir is None:
@@ -15,54 +14,51 @@ def run():
     if any([x not in ['A', 'C', 'G', 'T', 'a', 'c', 'g', 't'] for x in app.handle.get()]):
         raise ValueError('Genetic handle contains non nucleic bases')
 
-    SPINEgene.handle = app.handle.get()
-    SPINEgene.synth_len = int(app.oligoLen.get())
+    DIMPLE.handle = app.handle.get()
+    DIMPLE.synth_len = int(app.oligoLen.get())
     overlapL = int(app.overlap.get())
     overlapR = int(app.overlap.get())
     if app.delete.get():
         overlapR = max([int(x) for x in app.deletions.get().split(',')]) + overlapR - 3
     if app.fragmentLen.get() != 'auto':
-        SPINEgene.maxfrag = int(app.fragmentLen.get())
+        DIMPLE.maxfrag = int(app.fragmentLen.get())
     else:
-        SPINEgene.maxfrag = int(app.oligoLen.get()) - 62 - overlapL - overlapR  # 62 allows for cutsites and barcodes
+        DIMPLE.maxfrag = int(app.oligoLen.get()) - 62 - overlapL - overlapR  # 62 allows for cutsites and barcodes
 
     #adjust primer primerBuffer
-    SPINEgene.primerBuffer += overlapL
+    DIMPLE.primerBuffer += overlapL
 
-    SPINEgene.barcodeF = SPINEgene.barcodeF[int(app.barcode_start.get()):]
-    SPINEgene.barcodeR = SPINEgene.barcodeR[int(app.barcode_start.get()):]
-    SPINEgene.cutsite = Seq(app.restriction_sequence.get())
-    SPINEgene.avoid_sequence = [Seq(x) for x in app.avoid_sequence.get().split(',')]
+    DIMPLE.barcodeF = DIMPLE.barcodeF[int(app.barcode_start.get()):]
+    DIMPLE.barcodeR = DIMPLE.barcodeR[int(app.barcode_start.get()):]
+    DIMPLE.cutsite = Seq(app.restriction_sequence.get())
+    DIMPLE.avoid_sequence = [Seq(x) for x in app.avoid_sequence.get().split(',')]
     if app.mutationType.get() == 1:
-        SPINEgene.dms = True
+        DIMPLE.dms = True
     else:
-        SPINEgene.dms = False
+        DIMPLE.dms = False
 
     if app.usage:
-        SPINEgene.usage = 'ecoli'
+        DIMPLE.usage = 'ecoli'
     else:
-        SPINEgene.usage = 'human'
+        DIMPLE.usage = 'human'
 
     OLS = addgene(app.geneFile)
 
     if app.matchSequences.get() == 'match':
         align_genevariation(OLS)
-    if app.mutationType.get() == 0:
-        generate_DIS_fragments(OLS, overlapL, app.wDir)
-    elif app.mutationType.get() == 1:
-        if app.delete.get() == 0:
-            deletions = False
-        else:
-            deletions = [int(x) for x in app.deletions.get().split(',')]
-        if app.insert.get() == 0:
-            insertions = False
-        else:
-            insertions = app.insertions.get().split(',')
-        generate_DMS_fragments(OLS, overlapL, overlapR, app.include_substitutions.get(), insertions, deletions, app.wDir)
+    if app.delete.get() == 0:
+        deletions = False
     else:
-        raise AttributeError('Did not select type of mutation')
+        deletions = [int(x) for x in app.deletions.get().split(',')]
+    if app.insert.get() == 0:
+        insertions = False
+    else:
+        insertions = app.insertions.get().split(',')
+    generate_DMS_fragments(OLS, overlapL, overlapR, app.include_substitutions.get(), insertions, deletions, app.wDir)
+
     post_qc(OLS)
     print_all(OLS, app.wDir)
+
 
 class Application(tk.Frame):
     def __init__(self, master=None):
@@ -87,8 +83,6 @@ class Application(tk.Frame):
         self.gene_file = tk.Button(self, text='Target Gene File', command=self.browse_gene)
         self.gene_file.pack()
         self.geneFile = None
-        #wDir_balloon = Balloon(root, bg="white", title="Help")
-        #wDir_balloon.bind_widget(self.gene, balloonmsg="sequences including backbone in a fasta format. Place all in one fasta file. Name description can include start and end points (>gene1 start:1 end:2)")
 
         tk.Label(self, text='Oligo Length').pack()
         self.oligoLen = tk.Entry(self, textvariable=tk.StringVar(self, '230'))
@@ -114,9 +108,7 @@ class Application(tk.Frame):
         self.avoid_sequence = tk.Entry(self, width=50, textvariable=tk.StringVar(self, 'CGTCTC, GGTCTC'))
         self.avoid_sequence.pack()
 
-        tk.Label(self, text='Insertion Handle').pack()
-        self.handle = tk.Entry(self, width=50, textvariable=tk.StringVar(self, 'AGCGGGAGACCGGGGTCTCTGAGC'))
-        self.handle.pack()
+        self.handle = 'AGCGGGAGACCGGGGTCTCTGAGC'
 
         def sub_ON():
             self.include_substitutions.set(1)
@@ -160,7 +152,7 @@ class Application(tk.Frame):
 
         self.run = tk.Button(self, text='Run SPINE', command=run).pack()
 
-        #self.output = tk.Text(self, height=10, width=60).pack()
+        self.output = tk.Text(self, height=10, width=60).pack()
 
     def browse_wDir(self):
         self.wDir = filedialog.askdirectory(title="Select a File")
@@ -179,6 +171,6 @@ class Application(tk.Frame):
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.geometry('700x800')
+    root.geometry('700x900')
     app = Application(master=root)
     app.mainloop()

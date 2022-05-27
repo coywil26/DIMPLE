@@ -1,7 +1,7 @@
 """
-SPINEgene Saturated Programmable INsertion Engineering
+DIMPLE: Deep Indel Missense Programmable Library Engineering
 
-Python 3.7 package for generating oligo fragments with respective primers for saturated domain insertion for any gene of interest
+Python 3.7 package for generating oligo fragments and respective primers for scanning Indel/Missense mutations
 
 Written By: David Nedrud
 
@@ -17,7 +17,6 @@ Use align_genevariation()
 """
 
 from Bio import SeqIO
-from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqUtils import MeltingTemp as mt
 from Bio import pairwise2
@@ -27,13 +26,6 @@ from math import ceil
 import itertools
 from difflib import SequenceMatcher
 from random import randrange
-# from Bio import AlignIO
-# from Bio.Align.Applications import MafftCommandline
-
-"""Synthesized Fragment Insertion"""
-
-
-# This allows for individual fasta files or fasta files with multiple genes
 
 
 def addgene(genefile, start=[], end=[]):
@@ -46,14 +38,14 @@ def addgene(genefile, start=[], end=[]):
             start = int(gene.description.split('start:')[1].split(' ')[0]) - 1
             end = int(gene.description.split('end:')[1].split(' ')[0])
             gene.filename = genefile.replace('\\', '')
-            tmpOLS.append(SPINEgene(gene, start, end))
+            tmpOLS.append(DIMPLE(gene, start, end))
         else:
             gene.filename = genefile.replace('\\', '')
-            tmpOLS.append(SPINEgene(gene, start, end))
+            tmpOLS.append(DIMPLE(gene, start, end))
     return tmpOLS  # only return the class object itself if one gene is given
 
 
-class SPINEgene:
+class DIMPLE:
     """Synthesized Domain Insertion"""
 
     # Calculate and update maxfrag - Max number of nucleotides that a fragment can carry
@@ -66,11 +58,8 @@ class SPINEgene:
         self._synth_len = value
         self.maxfrag = value - 62
 
-    # Shared variables
-    # synth_len = 230  # default
+    # Shared variables for all genes
     minfrag = 24  # Picked based on smallest size for golden gate fragment efficiency
-    # handle = "AGCGGGAGACCGGGGTCTCTGAGC"  # Inserted handle for domain insertion
-
     primerBuffer = 30  # This extends the sequence beyond the ORF for a primer. Must be greater than 30
     allhangF = []
     allhangR = []
@@ -83,25 +72,12 @@ class SPINEgene:
     except FileNotFoundError:
         raise ValueError("Could not find barcode files. Please upload your own or place standard barcodes in the data file.")
 
-    # @property
-    # def barcodeF(self):
-    #     return self._barcodeF
-    # @property
-    # def barcodeR(self):
-    #     return self._barcodeR
-    # @barcodeF.setter
-    # def barcodeF(self,filename):
-    #     self._barcodeF = list(SeqIO.parse(filename,"fasta"))
-    # @barcodeR.setter
-    # def barcodeR(self,filename):
-    #     self._barcodeF = list(SeqIO.parse(filename,"fasta"))
-
     def __init__(self, gene, start=[], end=[]):
         #  Search for ORF
         try:
-            SPINEgene.maxfrag # if SPINEgene.maxfrag doesnt exist, create it
+            DIMPLE.maxfrag  # if DIMPLE.maxfrag doesnt exist, create it
         except AttributeError:
-            SPINEgene.maxfrag = self.synth_len - 62  # based on space for barcodes, cut sites, handle
+            DIMPLE.maxfrag = self.synth_len - 62  # based on space for barcodes, cut sites, handle
         self.geneid = gene.name
         self.linked = set()
         self.genePrimer = []
@@ -158,12 +134,12 @@ class SPINEgene:
             'Glu': ['GAG', 'GAA'],
             'Tyr': ['TAT', 'TAC']}
         self.aminoacids = ['Cys', 'Asp', 'Ser', 'Gln', 'Met', 'Asn', 'Pro', 'Lys', 'Thr', 'Phe', 'Ala', 'Gly', 'Ile', 'Leu',
-                      'His', 'Arg', 'Trp', 'Val', 'Glu', 'Tyr']
+                        'His', 'Arg', 'Trp', 'Val', 'Glu', 'Tyr']
         self.complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
 
-        # First check for BsaI sites and BsmBI sites
-        if any([gene.seq.upper().count(cut) + gene.seq.upper().count(cut.reverse_complement()) for cut in SPINEgene.avoid_sequence]):
-            raise ValueError('Unwanted Restriction cut sites found. Please input plasmids with these removed.' + str(SPINEgene.avoid_sequence))  # change codon
+        # First check for unwanted cutsites (BsaI sites and BsmBI sites)
+        if any([gene.seq.upper().count(cut) + gene.seq.upper().count(cut.reverse_complement()) for cut in DIMPLE.avoid_sequence]):
+            raise ValueError('Unwanted Restriction cut sites found. Please input plasmids with these removed.' + str(DIMPLE.avoid_sequence))  # change codon
         if start and end and (end - start) % 3 != 0:
             print('Gene length is not divisible by 3')
             start = []
@@ -235,15 +211,15 @@ class SPINEgene:
         else:
             self.seq = gene.seq[start - self.primerBuffer:end + self.primerBuffer]
         # Determine Fragment Size and store beginning and end of each fragment
-        num = int(round(((end - start) / float(SPINEgene.maxfrag)) + 0.499999999))  # total bins needed (rounded up)
+        num = int(round(((end - start) / float(DIMPLE.maxfrag)) + 0.499999999))  # total bins needed (rounded up)
         insertionsites = range(start + 3, end + 3, 3)
         fragsize = [len(insertionsites[i::num]) * 3 for i in list(range(num))]
         # if any(x<144 for x in fragsize):
         #     raise ValueError('Fragment size too low')
         print('Initial Fragment Sizes for:' + self.geneid)
         print(fragsize)
-        total = SPINEgene.primerBuffer
-        breaksites = [SPINEgene.primerBuffer]
+        total = DIMPLE.primerBuffer
+        breaksites = [DIMPLE.primerBuffer]
         for x in fragsize:
             total += x
             breaksites.extend([total])
@@ -293,9 +269,9 @@ class SPINEgene:
     @breaksites.setter
     def breaksites(self, value):
         if isinstance(value, list):
-            if any([(x - SPINEgene.primerBuffer) % 3 != 0 for x in value]):
+            if any([(x - DIMPLE.primerBuffer) % 3 != 0 for x in value]):
                 raise ValueError('New Breaksites are not divisible by 3')
-            if (value[0] != self.breaksites[0] or value[-1] != self.breaksites[-1]) and not SPINEgene.dms:
+            if (value[0] != self.breaksites[0] or value[-1] != self.breaksites[-1]) and not DIMPLE.dms:
                 if input('Beginning and End of gene have changed. Are you sure you want to continue? (y/n)') != 'y':
                     raise Exception('Canceled user set break sites')
             self.__breaksites = value
@@ -312,15 +288,14 @@ class SPINEgene:
 
 
 def align_genevariation(OLS):
-    if not isinstance(OLS[0], SPINEgene):
-        raise TypeError('Not an instance of the SPINEgene class')
+    if not isinstance(OLS[0], DIMPLE):
+        raise TypeError('Not an instance of the DIMPLE class')
     match = []
     print('------------Finding homologous regions------------')
     # First find genes with matching sequences
     for m in range(len(OLS)):
         remlist = range(len(OLS))[m + 1:]
         for p in remlist:
-            # score = pairwise2.align.globalmx(OLS[m].seq[genedata[m][2][0][0]:genedata[m][2][-1][0]],OLS[p].seq[genedata[p][2][0][0]:genedata[p][2][-1][0]],2,-1,one_alignment_only=True)
             score = pairwise2.align.globalmx(OLS[m].seq, OLS[p].seq, 2, -1, one_alignment_only=True)
             if score[0][2] / score[0][4] > 1.5:  # Threshold for a matched gene set
                 index = [x for x, geneset in enumerate(match) if m in geneset or p in geneset]  # Determine if aligned genes are in any of the previously match sets
@@ -341,39 +316,28 @@ def align_genevariation(OLS):
         for tmpset in match:
             matchset = list(tmpset)
             print('Determining Gene Variation for genes:' + ','.join([OLS[i].geneid for i in matchset]))
-            # Create Alignments for each gene set
-            # write to file
-            # with open('tmp_align_seq.fasta', 'w') as f:
-            #     for geneidx in matchset:
-            #         f.write('>%s %s\n' % (OLS[geneidx].geneid,str(geneidx)))
-            #         f.write('%s\n' % OLS[geneidx].seq)
-            # mafft_cline = MafftCommandline(input='tmp_align_seq.fasta')
-            # stdout, stderr = mafft_cline()
-            # with open('aligned.fasta','w') as f:
-            #     f.write(stdout)
-            # align = AlignIO.read('aligned.fasta','fasta')
             max_gene_len = 0
             variablesites = set()
             for i, j in itertools.combinations(matchset, 2):
-                max_gene_len = max(max_gene_len, len(OLS[i].seq)-2 * SPINEgene.primerBuffer, len(OLS[j].seq)-2 * SPINEgene.primerBuffer)
+                max_gene_len = max(max_gene_len, len(OLS[i].seq)-2 * DIMPLE.primerBuffer, len(OLS[j].seq)-2 * DIMPLE.primerBuffer)
                 seq_match = SequenceMatcher(None, OLS[i].seq, OLS[j].seq)
                 # Determine variable regions
                 variablesites.update([x.size for x in seq_match.get_matching_blocks() if x.size != len(OLS[i].seq) and x.size != len(OLS[j].seq) and x.size != 0])  # not sure how to account for zero
             problemsites = set()
             for kk in variablesites:
-                problemsites.update(range(kk - SPINEgene.primerBuffer, kk + SPINEgene.primerBuffer))  # Add space for primers to bind
+                problemsites.update(range(kk - DIMPLE.primerBuffer, kk + DIMPLE.primerBuffer))  # Add space for primers to bind
             # Determine Fragment Size while avoiding variable regions - must be same for all genes
-            num = int(round(((max_gene_len) / float(SPINEgene.maxfrag)) + 0.499999999))  # total bins needed (rounded up)
-            insertionsites = range(SPINEgene.primerBuffer + 3, max_gene_len + SPINEgene.primerBuffer + 3, 3)  # all genes start with a buffer
+            num = int(round(((max_gene_len) / float(DIMPLE.maxfrag)) + 0.499999999))  # total bins needed (rounded up)
+            insertionsites = range(DIMPLE.primerBuffer + 3, max_gene_len + DIMPLE.primerBuffer + 3, 3)  # all genes start with a buffer
             fragsize = [len(insertionsites[i::num]) * 3 for i in list(range(num))]
-            total = SPINEgene.primerBuffer
-            breaksites = [SPINEgene.primerBuffer]  # first site is always the max primer length (adjusted at beginning)
+            total = DIMPLE.primerBuffer
+            breaksites = [DIMPLE.primerBuffer]  # first site is always the max primer length (adjusted at beginning)
             for x in fragsize:
                 total += x
                 breaksites.extend([total])
-            available_sites = [xsite for xsite in range(0, max_gene_len+SPINEgene.primerBuffer+1, 3) if xsite not in problemsites]
+            available_sites = [xsite for xsite in range(0, max_gene_len+DIMPLE.primerBuffer+1, 3) if xsite not in problemsites]
             breaksites = [site if site in available_sites else min(available_sites, key=lambda x:abs(x-site)) for site in breaksites]  # remove problemsites?
-            if any(x < SPINEgene.minfrag or x > SPINEgene.maxfrag for x in fragsize):
+            if any(x < DIMPLE.minfrag or x > DIMPLE.maxfrag for x in fragsize):
                 print(fragsize)
                 raise ValueError('Fragment size too low')  # this was decided by author. could be changed
             fragsize = [j-i for i, j in zip(breaksites[:-1], breaksites[1:])]
@@ -406,7 +370,7 @@ def align_genevariation(OLS):
 def find_geneprimer(genefrag, start, end):
     # start is variable to adjust melting temperature (5' of primer)
     # end is fixed with restriction site added (3' of primer)
-    primer = genefrag[start:end].complement() + SPINEgene.cutsite[::-1] + "ATA" # added ATA for cleavage close to end of DNA fragment
+    primer = genefrag[start:end].complement() + DIMPLE.cutsite[::-1] + "ATA"  # added ATA for cleavage close to end of DNA fragment
     # Check melting temperature
     # find complementary sequences
     comp = 0  # compensate for bases that align with bsmbi
@@ -416,17 +380,17 @@ def find_geneprimer(genefrag, start, end):
     tm2 = mt.Tm_NN(primer[0:end - start + comp], nn_table=mt.DNA_NN2)
     tm4 = mt.Tm_NN(primer[0:end - start + comp], nn_table=mt.DNA_NN4)
     count = 0
-    while tm2 < SPINEgene.primerTm[0] or tm2 > SPINEgene.primerTm[1] or tm4 < SPINEgene.primerTm[0] or tm4 > SPINEgene.primerTm[1]:
-        if tm2 < SPINEgene.primerTm[0] or tm4 < SPINEgene.primerTm[0]:
+    while tm2 < DIMPLE.primerTm[0] or tm2 > DIMPLE.primerTm[1] or tm4 < DIMPLE.primerTm[0] or tm4 > DIMPLE.primerTm[1]:
+        if tm2 < DIMPLE.primerTm[0] or tm4 < DIMPLE.primerTm[0]:
             start += -1
-            primer = genefrag[start:end].complement() + SPINEgene.cutsite[::-1] + "ATA"  # BsmbI Site addition
+            primer = genefrag[start:end].complement() + DIMPLE.cutsite[::-1] + "ATA"  # BsmbI Site addition
             tm2 = mt.Tm_NN(primer[0:end - start + comp], nn_table=mt.DNA_NN2)
             tm4 = mt.Tm_NN(primer[0:end - start + comp], nn_table=mt.DNA_NN4)
         if count > 12 or start == 0:  # stop if caught in inf loop or if linker is at max (31 + 7 = 38 bases)
             break
-        if tm2 > SPINEgene.primerTm[1] and tm4 > SPINEgene.primerTm[1]:
+        if tm2 > DIMPLE.primerTm[1] and tm4 > DIMPLE.primerTm[1]:
             start += 1
-            primer = genefrag[start:end].complement() + SPINEgene.cutsite[::-1] + "ATA"
+            primer = genefrag[start:end].complement() + DIMPLE.cutsite[::-1] + "ATA"
             # tm = mt.Tm_NN(primer[0:e-s+comp],c_seq=genefrag[s:e+comp],nn_table=mt.DNA_NN2)
             tm2 = mt.Tm_NN(primer[0:end - start + comp], nn_table=mt.DNA_NN2)
             tm4 = mt.Tm_NN(primer[0:end - start + comp], nn_table=mt.DNA_NN4)
@@ -443,7 +407,7 @@ def find_geneprimer(genefrag, start, end):
 def find_fragment_primer(fragment, stop):
     # This function finds optimal primer for OLS subpool by changing 3' end of primer
     start = 0  # starts at maximum length (5' is fixed)
-    if stop > 25: # limit primer to 25 bases to begin with
+    if stop > 25:  # limit primer to 25 bases to begin with
         end = 25
     else:
         end = stop
@@ -451,14 +415,14 @@ def find_fragment_primer(fragment, stop):
     primer = fragment[start:end]
     tm2 = mt.Tm_NN(primer, nn_table=mt.DNA_NN2)  # Two methods of finding melting temperature seems more consistent
     tm4 = mt.Tm_NN(primer, nn_table=mt.DNA_NN4)
-    while tm2 < SPINEgene.primerTm[0] or tm2 > SPINEgene.primerTm[1] or tm4 < SPINEgene.primerTm[0] or tm4 > SPINEgene.primerTm[1] or len(primer) < 16:
+    while tm2 < DIMPLE.primerTm[0] or tm2 > DIMPLE.primerTm[1] or tm4 < DIMPLE.primerTm[0] or tm4 > DIMPLE.primerTm[1] or len(primer) < 16:
         count += 1
         if count > 12 or end > stop:  # stop if caught in inf loop or if primer is larger than the barcode
             end = stop
             primer = fragment[start:end]
             break
 
-        if tm2 < SPINEgene.primerTm[0] or tm4 < SPINEgene.primerTm[0]:
+        if tm2 < DIMPLE.primerTm[0] or tm4 < DIMPLE.primerTm[0]:
             if start == 0:
                 break
             end += 1
@@ -466,12 +430,13 @@ def find_fragment_primer(fragment, stop):
             tm2 = mt.Tm_NN(primer, nn_table=mt.DNA_NN2)
             tm4 = mt.Tm_NN(primer, nn_table=mt.DNA_NN4)
 
-        if tm2 > SPINEgene.primerTm[1] or tm4 > SPINEgene.primerTm[1]:
+        if tm2 > DIMPLE.primerTm[1] or tm4 > DIMPLE.primerTm[1]:
             end += -1
             primer = fragment[start:end]
             tm2 = mt.Tm_NN(primer, nn_table=mt.DNA_NN2)
             tm4 = mt.Tm_NN(primer, nn_table=mt.DNA_NN4)
     return primer, round(tm2, 1)
+
 
 def check_nonspecific(primer, fragment, point):
     non = []
@@ -528,12 +493,12 @@ def recalculate_num_fragments(gene):
     num = int(round(((gene.end - gene.start) / float(gene.maxfrag)) + 0.499999999))  # total bins needed (rounded up)
     insertionsites = range(gene.start + 3, gene.end + 3, 3)
     gene.fragsize = [len(insertionsites[i::num]) * 3 for i in list(range(num))]
-    total = SPINEgene.primerBuffer
-    breaksites = [SPINEgene.primerBuffer]
+    total = DIMPLE.primerBuffer
+    breaksites = [DIMPLE.primerBuffer]
     for x in gene.fragsize:
         total += x
         breaksites.extend([total])
-    if SPINEgene.dms:
+    if DIMPLE.dms:
         tmpbreaklist = []
         for idx, x in enumerate(breaksites[:-1]):
             if idx:
@@ -549,8 +514,8 @@ def recalculate_num_fragments(gene):
     return gene
 
 def switch_fragmentsize(gene, detectedsite, OLS):
-    if not isinstance(gene, SPINEgene):
-        raise TypeError('Not an instance of the SPINEgene class')
+    if not isinstance(gene, DIMPLE):
+        raise TypeError('Not an instance of the DIMPLE class')
     start = gene.start
     skip = False
     count = 0
@@ -577,7 +542,7 @@ def switch_fragmentsize(gene, detectedsite, OLS):
                     shift = -3
             gene.breaksites[detectedsite] = gene.breaksites[detectedsite] + shift
             gene.fragsize = [j - i for i, j in zip(gene.breaksites[:-1], gene.breaksites[1:])]
-            if SPINEgene.dms:
+            if DIMPLE.dms:
                 tmpbreaklist = []
                 for idx, x in enumerate(gene.breaksites[:-1]):
                     if idx:
@@ -634,7 +599,7 @@ def switch_fragmentsize(gene, detectedsite, OLS):
         # Process shift and reprocess fragments
         gene.breaksites[detectedsite] = gene.breaksites[detectedsite] + shift
         gene.fragsize = [j - i for i, j in zip(gene.breaksites[:-1], gene.breaksites[1:])]
-        if SPINEgene.dms:
+        if DIMPLE.dms:
             tmpbreaklist = []
             for idx, x in enumerate(gene.breaksites[:-1]):
                 if idx:
@@ -669,13 +634,13 @@ def switch_fragmentsize(gene, detectedsite, OLS):
 
 def check_overhangs(gene, OLS, overlapL, overlapR):
     # Force all overhangs to be different within a gene (no more than 2 matching in a row)
-    if not isinstance(gene, SPINEgene):
-        raise TypeError('Not an instance of the SPINEgene class')
+    if not isinstance(gene, DIMPLE):
+        raise TypeError('Not an instance of the DIMPLE class')
     while True:
         overhang = []
         for idx, y in enumerate(gene.breaklist):
-            overhang.append([gene.seq[y[0] - 4 - overlapL : y[0] - overlapR], idx])  # Forward overhang
-            overhang.append([gene.seq[y[1] + overlapL : y[1] + 4 + overlapR], idx + 1])  # Reverse overhang
+            overhang.append([gene.seq[y[0] - 4 - overlapL: y[0] - overlapR], idx])  # Forward overhang
+            overhang.append([gene.seq[y[1] + overlapL: y[1] + 4 + overlapR], idx + 1])  # Reverse overhang
         detectedsites = set()  # stores matching overhangs
         for i in range(len(overhang)):  # check each overhang for matches
             for j in [x for x in range(len(overhang)) if x != i]:  # permutate over every overhang combination to find matches
@@ -694,169 +659,33 @@ def check_overhangs(gene, OLS, overlapL, overlapR):
     # return skip
 
 
-def generate_DIS_fragments(OLS, overlap, folder=''):
-    if not isinstance(OLS[0], SPINEgene):
-        raise TypeError('Not an instance of the SPINEgene class')
-    # Loop through each gene or gene variation
-    finishedGenes = []
-    for ii, gene in enumerate(OLS):
-        print('--------------------------------- Analyzing Gene:' + gene.geneid + ' ---------------------------------')
-        if not any([tmp in finishedGenes for tmp in gene.linked]):  # only run analysis for one of the linked genes
-            # Quality Control for overhangs from the same gene
-            check_overhangs(gene, OLS, overlap, overlap)
-        # Generate oligos and Primers
-        idx = 0 # index for fragment
-        totalcount = 0
-        #storage for unused barcodes
-        compileF = []
-        compileR = []
-
-        while idx < len(gene.breaklist):
-            if idx == 0:
-                gene.oligos = []
-                gene.barPrimer = []
-                gene.genePrimer = []
-            frag = gene.breaklist[idx]
-            fragstart = str(int((frag[0] - SPINEgene.primerBuffer) / 3))
-            fragend = str(int((frag[1] - SPINEgene.primerBuffer) / 3))
-            print('Creating Gene:' + gene.geneid + ' --- Fragment:' + fragstart + '-' + fragend)
-            if not any([tmp in finishedGenes for tmp in gene.linked]):  # only run analysis for one of the linked genes
-                # Primers for gene amplification with addition of BsmBI site
-                genefrag = gene.seq[frag[0]-SPINEgene.primerBuffer : frag[0]+SPINEgene.primerBuffer]
-                reverse, tmR, sR = find_geneprimer(genefrag, 15, SPINEgene.primerBuffer+1-overlap) # 15 is just a starting point
-                genefrag = gene.seq[frag[1]-SPINEgene.primerBuffer: frag[1]+SPINEgene.primerBuffer]
-                forward, tmF, sF = find_geneprimer(genefrag.reverse_complement(), 15, SPINEgene.primerBuffer+1-overlap)
-                tmpr = check_nonspecific(reverse, gene.seq, frag[0] - len(gene.seq) + 10 - overlap) # negative numbers look for reverse primers
-                tmpf = check_nonspecific(forward, gene.seq, frag[1] - 10 + overlap)
-                if tmpf or tmpr:
-                    # swap size with another fragment
-                    if tmpf:
-                        idx = idx + 1
-                    # swap size with another fragment
-                    print("------------------ Fragment size swapped due to non-specific primers ------------------")
-                    skip = switch_fragmentsize(gene, idx, OLS)
-                    if skip:
-                        print("Gene primer at the end of gene has non specific annealing. Try lengthening that primer")
-                        print(forward)
-
-                        # if end of gene, try to extend primer to make it more specific?
-                        #if tmpr:
-                        #    reverse +=
-                        #if tmpf:
-                        #    forward +=
-                    else:
-                        # Quality Control for overhangs from the same gene
-                        # check_overhangs(gene, OLS)
-                        SPINEgene.barcodeF.extend(compileF)  # return unused primers
-                        SPINEgene.barcodeR.extend(compileR)
-                        compileF = []  # reset unused primers
-                        compileR = []
-                        gene.genePrimer = []  # reset gene all primers due to nonspecific primer
-                        gene.barPrimer = []
-                        idx = 0
-                        continue
-                # Store
-                gene.genePrimer.append(SeqRecord(reverse, id=gene.geneid + "_geneP_DI-" + str(idx + 1) + "_R",
-                                                 description="Frag" + fragstart + "-" + fragend + ' ' + str(tmR) + 'C'))
-                gene.genePrimer.append(SeqRecord(forward, id=gene.geneid + "_geneP_DI-" + str(idx + 1) + "_F",
-                                                 description="Frag" + fragstart + "-" + fragend + ' ' + str(tmF) + 'C'))
-            if gene.unique_Frag[idx]:
-                # Create gene fragments with insertions
-                tmF = 0
-                tmR = 0
-                count = 0
-                tmpseq = gene.seq[frag[0] - 4-overlap : frag[1]+4+overlap].ungap('-') #4 is overhang for BsmBI
-                while tmF < SPINEgene.primerTm[0] or tmR < SPINEgene.primerTm[0]:  # swap out barcode if tm is low
-                    difference = (SPINEgene.synth_len - (len(tmpseq) + 14 + len(SPINEgene.handle)))  # 14 bases is the length of the restriction sites with overhangs (7 bases each)
-                    barF = SPINEgene.barcodeF.pop(0)
-                    barR = SPINEgene.barcodeR.pop(0)
-                    count += 1  # How many barcodes used
-                    compileF.append(barF)
-                    compileR.append(barR)
-                    while difference / 2 > len(barF):
-                        tmpF = SPINEgene.barcodeF.pop(0)
-                        tmpR = SPINEgene.barcodeR.pop(0)
-                        compileF.append(tmpF)
-                        compileR.append(tmpR)
-                        barF += tmpF
-                        barR += tmpR
-                        count += 1  # How many barcodes used
-                    # check barcode for BsmBI cut sites (not BsaI)
-                    if any([barF.seq[0:int(difference / 2)].count(cut) for cut in SPINEgene.avoid_sequence]) or any([barR.seq.reverse_complement()[0:difference - int(difference / 2)].count(cut) for cut in SPINEgene.avoid_sequence]):
-                        print('Additional restriction sites found in barcode. Replacing barcodes')
-                        # return barcodes?
-                        continue
-                    tmpfrag = barF.seq[0:int(difference / 2)] + SPINEgene.cutsite + "C" + tmpseq + "G" + SPINEgene.cutsite.reverse_complement() + barR.seq.reverse_complement()[0:difference - int(difference / 2)]
-                    # primers for amplifying subpools
-                    offset = int(difference / 2) + 11  # add 11 bases for type 2 restriction
-                    primerF, tmF = find_fragment_primer(tmpfrag, offset)
-                    if len(primerF) > 21:
-                        tmF = 0
-                    primerR, tmR = find_fragment_primer(tmpfrag.reverse_complement(), (difference - offset + 22))
-                    if len(primerR) > 21:
-                        tmR = 0
-
-                # Create a gene fragment for each insertion point. Important! This loop does all the work. Change this loop to edit mutation type
-                for i in range(offset + overlap, offset + gene.fragsize[idx] + overlap, 3):  # Could replace fragsize with frag[1]-frag[0]
-                    xfrag = tmpfrag[0:i] + SPINEgene.handle + tmpfrag[i:]
-                    if len(xfrag) < SPINEgene.synth_len:
-                        print('Fragment is ' + str(len(xfrag)))
-                        raise ValueError('Fragment is less than specifified oligo length')
-                    # Check each cassette for more than 2 BsmBI and 2 BsaI sites
-                    if any([(xfrag.upper()[offset:len(tmpseq)+offset].count(x) + xfrag.upper()[offset:len(tmpseq)+offset].count(x.reverse_complement())) > 2 for x in SPINEgene.avoid_sequence]):
-                        raise ValueError('Unwanted restriction site found within insertion fragment')
-                    gene.oligos.append(SeqRecord(xfrag,
-                                                    id=gene.geneid + "_DI_" + fragstart + "-" + fragend + "_insertion" + str(int((frag[0] + i - offset - SPINEgene.primerBuffer - overlap) / 3)),
-                                                    description=''))
-                # Store primers for gene fragment
-                gene.barPrimer.append(SeqRecord(primerF, id=gene.geneid + "_oligoP_DI-" + str(idx + 1) + "_F",
-                                                description="Frag" + fragstart + "-" + fragend + "_" + str(tmF) + 'C'))
-                gene.barPrimer.append(SeqRecord(primerR, id=gene.geneid + "_oligoP_DI-" + str(idx + 1) + "_R",
-                                                description="Frag" + fragstart + "-" + fragend + "_" + str(tmR) + 'C'))
-                print('Barcodes used:' + str(count))
-                print('Barcodes Remaining:' + str(len(SPINEgene.barcodeF)))
-            idx += 1
-        # Export files (fasta)
-        # Fragments
-        SeqIO.write(gene.oligos, os.path.join(folder.replace('\\', ''),
-                                                 gene.geneid + "_DI_Oligos.fasta"), "fasta")
-        # Barcode Primers
-        SeqIO.write(gene.barPrimer, os.path.join(folder.replace('\\', ''),
-                                                 gene.geneid + "_DI_Oligo_Primers.fasta"), "fasta")
-        # Amplification Primers
-        SeqIO.write(gene.genePrimer, os.path.join(folder.replace('\\', ''),
-                                                  gene.geneid + "_DI_Gene_Primers.fasta"), "fasta")
-        # Record finished gene for aligned genes
-        finishedGenes.extend([ii])
-
-
 def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, delete=False, folder=''):
     # dms set to true for subsitition mutations
     # insert set to a list of insertions
     # delete set to a list of numbers of symmetrical deletions
-    if not isinstance(OLS[0], SPINEgene):
-        raise TypeError('Not an instance of the SPINEgene class')
+    if not isinstance(OLS[0], DIMPLE):
+        raise TypeError('Not an instance of the DIMPLE class')
     # Loop through each gene or gene variation
     finishedGenes = []
     # Adjust fragments to account for variable sized fragments with the same subpool barcodes/primers
     if insert or delete:
         if insert:
-            SPINEgene.maxfrag = SPINEgene.synth_len - 64 - max([len(x) for x in insert]) - overlapL - overlapR  # increase barcode space to allow for variable sized fragments within an oligo
+            DIMPLE.maxfrag = DIMPLE.synth_len - 64 - max([len(x) for x in insert]) - overlapL - overlapR  # increase barcode space to allow for variable sized fragments within an oligo
         if delete and not insert:
-            SPINEgene.maxfrag = SPINEgene.synth_len - 64 - overlapL - overlapR
-        print('New max fragment:' + str(SPINEgene.maxfrag))
+            DIMPLE.maxfrag = DIMPLE.synth_len - 64 - overlapL - overlapR
+        print('New max fragment:' + str(DIMPLE.maxfrag))
         for gene in OLS:
             switch_fragmentsize(gene, 1, OLS)
     for ii, gene in enumerate(OLS):
         print('--------------------------------- Analyzing Gene:' + gene.geneid + ' ---------------------------------')
         gene.breaklist[0][0] += 3  # Do not mutate first codon
         gene.fragsize[0] += -3  # Adjust size to match breaklist
-        gene.maxfrag = SPINEgene.maxfrag
+        gene.maxfrag = DIMPLE.maxfrag
         if not any([tmp in finishedGenes for tmp in gene.linked]):  # only run analysis for one of the linked genes
             # Quality Control for overhangs from the same gene
             check_overhangs(gene, OLS, overlapL, overlapR)
         # Generate oligos and Primers
-        idx = 0 # index for fragment
+        idx = 0  # index for fragment
         totalcount = 0
         #storage for unused barcodes
         compileF = []
@@ -873,16 +702,16 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                 gene.genePrimer = []
             frag = gene.breaklist[idx]
             grouped_oligos = []
-            fragstart = str(int((frag[0] - SPINEgene.primerBuffer) / 3) + 1)
-            fragend = str(int((frag[1] - SPINEgene.primerBuffer) / 3))
+            fragstart = str(int((frag[0] - DIMPLE.primerBuffer) / 3) + 1)
+            fragend = str(int((frag[1] - DIMPLE.primerBuffer) / 3))
             print('Creating Gene:' + gene.geneid + ' --- Fragment:' + fragstart + '-' + fragend)
             if not any([tmp in finishedGenes for tmp in gene.linked]):  # only run analysis for one of the linked genes
                 # Primers for gene amplification with addition of BsmBI site
-                genefrag = gene.seq[frag[0]-SPINEgene.primerBuffer : frag[0]+SPINEgene.primerBuffer]
-                reverse, tmR, sR = find_geneprimer(genefrag, 15, SPINEgene.primerBuffer+1-overlapL) # 15 is just a starting point
-                genefrag = gene.seq[frag[1]-SPINEgene.primerBuffer: frag[1]+SPINEgene.primerBuffer]
-                forward, tmF, sF = find_geneprimer(genefrag.reverse_complement(), 15, SPINEgene.primerBuffer+1-overlapR)
-                tmpr = check_nonspecific(reverse, gene.seq, frag[0] - len(gene.seq) + 10 - overlapL) # negative numbers look for reverse primers
+                genefrag = gene.seq[frag[0]-DIMPLE.primerBuffer : frag[0]+DIMPLE.primerBuffer]
+                reverse, tmR, sR = find_geneprimer(genefrag, 15, DIMPLE.primerBuffer+1-overlapL)  # 15 is just a starting point
+                genefrag = gene.seq[frag[1]-DIMPLE.primerBuffer: frag[1]+DIMPLE.primerBuffer]
+                forward, tmF, sF = find_geneprimer(genefrag.reverse_complement(), 15, DIMPLE.primerBuffer+1-overlapR)
+                tmpr = check_nonspecific(reverse, gene.seq, frag[0] - len(gene.seq) + 10 - overlapL)  # negative numbers look for reverse primers
                 tmpf = check_nonspecific(forward, gene.seq, frag[1] - 10 + overlapR)
                 if tmpf or tmpr:
                     # swap size with another fragment
@@ -903,8 +732,8 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                     else:
                         # Quality Control for overhangs from the same gene
                         # check_overhangs(gene, OLS)
-                        SPINEgene.barcodeF.extend(compileF)  # return unused primers
-                        SPINEgene.barcodeR.extend(compileR)
+                        DIMPLE.barcodeF.extend(compileF)  # return unused primers
+                        DIMPLE.barcodeR.extend(compileR)
                         compileF = []  # reset unused primers
                         compileR = []
                         gene.genePrimer = []  # reset gene all primers due to nonspecific primer
@@ -917,12 +746,12 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                 gene.genePrimer.append(SeqRecord(forward, id=gene.geneid + "_geneP_Mut-" + str(idx + 1) + "_F",
                                                  description="Frag" + fragstart + "-" + fragend + ' ' + str(tmF) + 'C'))
                 # Determine missing double mutations
-                beginning = int((frag[0] - SPINEgene.primerBuffer - sR) / 3)  # Region missing double mutations
+                beginning = int((frag[0] - DIMPLE.primerBuffer - sR) / 3)  # Region missing double mutations
                 if beginning < 1:
                     beginning = 1
-                end = ceil((frag[1] - SPINEgene.primerBuffer + sF) / 3)
-                if end > ceil((gene.breaksites[-1] - SPINEgene.primerBuffer) / 3):
-                    end = ceil((gene.breaksites[-1] - SPINEgene.primerBuffer) / 3)
+                end = ceil((frag[1] - DIMPLE.primerBuffer + sF) / 3)
+                if end > ceil((gene.breaksites[-1] - DIMPLE.primerBuffer) / 3):
+                    end = ceil((gene.breaksites[-1] - DIMPLE.primerBuffer) / 3)
                 missingTmp = set()
                 for site in range(beginning, end):  # Record these missing double mutations
                     for site2 in range(site + 1, end):
@@ -936,7 +765,7 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                 tmF = 0
                 tmR = 0
                 count = 0
-                tmpseq = gene.seq[frag[0]-4-overlapL : frag[1]+4+overlapR].ungap('-')  # extract sequence for oligo fragment include an extra 4 bases for BsmBI cut site and overlap
+                tmpseq = gene.seq[frag[0]-4-overlapL: frag[1]+4+overlapR].ungap('-')  # extract sequence for oligo fragment include an extra 4 bases for BsmBI cut site and overlap
                 offset = 4 + overlapL
                 ################# Create the mutations
                 # DMS
@@ -957,14 +786,14 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                             mutation = np.random.choice(codons, 1, p)  # Pick one codon
                             xfrag = tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]  # Add mutation to fragment
                             # Check each cassette for more than 2 BsmBI and 2 BsaI sites
-                            while any([(xfrag.upper().count(x) + xfrag.upper().count(x.reverse_complement())) > 2 for x in SPINEgene.avoid_sequence]):
+                            while any([(xfrag.upper().count(x) + xfrag.upper().count(x.reverse_complement())) > 2 for x in DIMPLE.avoid_sequence]):
                                 print('Found avoided sequences')  # change codon
                                 mutation = np.random.choice(gene.SynonymousCodons[jk], 1, p)  # Pick one codon
                                 xfrag = tmpseq[0:i] + mutation + tmpseq[i + 3:]
-                            mutations.append('>'  + wt[0] + str(int((frag[0] + i + 3 - offset - SPINEgene.primerBuffer) / 3)) + jk)
+                            mutations.append('>'  + wt[0] + str(int((frag[0] + i + 3 - offset - DIMPLE.primerBuffer) / 3)) + jk)
                             mutations.append(mutation)
                             dms_sequences.append(SeqRecord(xfrag,
-                                                          id=gene.geneid + "_DMS-" + str(idx + 1) + "_" + wt[0] + str(int((frag[0] + i + 3 - offset - SPINEgene.primerBuffer) / 3)) + jk,
+                                                          id=gene.geneid + "_DMS-" + str(idx + 1) + "_" + wt[0] + str(int((frag[0] + i + 3 - offset - DIMPLE.primerBuffer) / 3)) + jk,
                                                           description='Frag '+fragstart + "-" + fragend))
                     with open(os.path.join(folder.replace('\\', ''), gene.geneid + "_mutations.csv"),'w') as file:
                         for mut in mutations:
@@ -975,13 +804,13 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                         for insert_n in insert:
                             xfrag = tmpseq[0:i] + insert_n + tmpseq[i:]  # Add mutation to fragment
                             # Check each cassette for more than 2 BsmBI and 2 BsaI sites
-                            while any([(xfrag.upper().count(x) + xfrag.upper().count(x.reverse_complement())) > 2 for x in SPINEgene.avoid_sequence]):
+                            while any([(xfrag.upper().count(x) + xfrag.upper().count(x.reverse_complement())) > 2 for x in DIMPLE.avoid_sequence]):
                                 raise ValueError('Unwanted restriction site found within insertion fragment')
                                 # not sure how to solve this issue
                                 #mutation?
                                 #xfrag = tmpseq[0:i] + mutation + tmpseq[i + 3:]
                             dms_sequences.append(SeqRecord(xfrag,
-                                                          id=gene.geneid + "_insert-" + str(idx + 1) + "_" + insert_n + '-' + str(int((frag[0] + i + 3 - offset - SPINEgene.primerBuffer) / 3)),
+                                                          id=gene.geneid + "_insert-" + str(idx + 1) + "_" + insert_n + '-' + str(int((frag[0] + i + 3 - offset - DIMPLE.primerBuffer) / 3)),
                                                           description='Frag '+fragstart + "-" + fragend))
                 if delete:
                     # deletion
@@ -992,34 +821,34 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                             else:
                                 xfrag = tmpseq[0:i] + tmpseq[i+delete_n:]  # delete forward from position only
                             # Check each cassette for more than 2 BsmBI and 2 BsaI sites
-                            while any([(xfrag.upper().count(x) + xfrag.upper().count(x.reverse_complement())) > 2 for x in SPINEgene.avoid_sequence]):
+                            while any([(xfrag.upper().count(x) + xfrag.upper().count(x.reverse_complement())) > 2 for x in DIMPLE.avoid_sequence]):
                                 raise ValueError('Unwanted restriction site found within insertion fragment')
                                 #xfrag = tmpseq[0:i-delete_n-3] + tmpseq[i+delete_n:] iteratively shift deletion to avoid cut sites? or mutate codons of near by aa?
                             dms_sequences.append(SeqRecord(xfrag,
-                                                          id=gene.geneid + "_delete-" + str(idx + 1) + "_" + str(delete_n) + '-' + str(int((frag[0] + i + 3 - offset - SPINEgene.primerBuffer) / 3)),
+                                                          id=gene.geneid + "_delete-" + str(idx + 1) + "_" + str(delete_n) + '-' + str(int((frag[0] + i + 3 - offset - DIMPLE.primerBuffer) / 3)),
                                                           description='Frag '+fragstart + "-" + fragend))
                 if gene.num_frag_per_oligo > 1:
                     dms_sequences = combine_fragments(dms_sequences, gene.num_frag_per_oligo, gene.split)
                 # determine barcodes for subpool amplification based on smallest size
                 frag_sizes = [len(xf.seq) for xf in dms_sequences]
                 smallest_frag = dms_sequences[frag_sizes.index(min(frag_sizes))].seq
-                while tmF < SPINEgene.primerTm[0] or tmR < SPINEgene.primerTm[0]:  # swap out barcode if tm is low
-                    difference = (SPINEgene.synth_len - (len(smallest_frag) + 14))  # 14 bases is the length of the restriction sites with overhangs (7 bases each)
-                    barF = SPINEgene.barcodeF.pop(0)
-                    barR = SPINEgene.barcodeR.pop(0)
+                while tmF < DIMPLE.primerTm[0] or tmR < DIMPLE.primerTm[0]:  # swap out barcode if tm is low
+                    difference = (DIMPLE.synth_len - (len(smallest_frag) + 14))  # 14 bases is the length of the restriction sites with overhangs (7 bases each)
+                    barF = DIMPLE.barcodeF.pop(0)
+                    barR = DIMPLE.barcodeR.pop(0)
                     count += 1  # How many barcodes used
                     compileF.append(barF)
                     compileR.append(barR)
                     while difference / 2 > len(barF):
-                        tmpF = SPINEgene.barcodeF.pop(0)
-                        tmpR = SPINEgene.barcodeR.pop(0)
+                        tmpF = DIMPLE.barcodeF.pop(0)
+                        tmpR = DIMPLE.barcodeR.pop(0)
                         compileF.append(tmpF)
                         compileR.append(tmpR)
                         barF += tmpF
                         barR += tmpR
                         count += 1  # How many barcodes used
-                    tmpfrag_1 = barF.seq[0:int(difference / 2)] + SPINEgene.cutsite + "C" + tmpseq[0:4] # include recoginition site and the 4 base overhang
-                    tmpfrag_2 = tmpseq[-4:] + "G" + SPINEgene.cutsite.reverse_complement() + barR.seq.reverse_complement()[0:difference - int(difference / 2)]
+                    tmpfrag_1 = barF.seq[0:int(difference / 2)] + DIMPLE.cutsite + "C" + tmpseq[0:4]  # include recoginition site and the 4 base overhang
+                    tmpfrag_2 = tmpseq[-4:] + "G" + DIMPLE.cutsite.reverse_complement() + barR.seq.reverse_complement()[0:difference - int(difference / 2)]
                     # primers for amplifying subpools
                     offset = int(difference / 2) + 11  # add 11 bases for type 2 restriction
                     primerF, tmF = find_fragment_primer(tmpfrag_1, 25)
@@ -1031,7 +860,7 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                 group_oligos = []
                 for sequence in dms_sequences:  # add barcodes to the fragments to make the oligos
                     if insert or delete:
-                        difference = SPINEgene.synth_len - len(sequence.seq[4:-4]) - 22 # how many bases need to be added to make oligo correct length
+                        difference = DIMPLE.synth_len - len(sequence.seq[4:-4]) - 22  # how many bases need to be added to make oligo correct length
                         offset = int(difference/2)  # force it to be a integer
                         combined_sequence = tmpfrag_1[:offset] + tmpfrag_1[-11:] + sequence.seq[4:-4] + tmpfrag_2[:11] + tmpfrag_2[-(difference - offset):]
                     else:
@@ -1054,7 +883,7 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                 gene.barPrimer.append(SeqRecord(primerR, id=gene.geneid + "_oligoP_DMS-" + str(idx + 1) + "_R",
                                                 description="Frag" + fragstart + "-" + fragend + "_" + str(tmR) + 'C'))
                 print('Barcodes used:' + str(count))
-                print('Barcodes Remaining:' + str(len(SPINEgene.barcodeF)))
+                print('Barcodes Remaining:' + str(len(DIMPLE.barcodeF)))
             if gene.doublefrag == 1:
                 all_grouped_oligos.append(grouped_oligos)
             idx += 1
@@ -1078,11 +907,11 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                     combined_sequence = sequence.seq
                     difference = 230 - len(combined_sequence)
                     # print(len(tmpseq))
-                    barF2 = SPINEgene.barcodeF.pop(0)
-                    barR2 = SPINEgene.barcodeR.pop(0)
+                    barF2 = DIMPLE.barcodeF.pop(0)
+                    barR2 = DIMPLE.barcodeR.pop(0)
                     while difference / 2 > len(barF2):
-                        barF2 += SPINEgene.barcodeF.pop(0)
-                        barR2 += SPINEgene.barcodeR.pop(0)
+                        barF2 += DIMPLE.barcodeF.pop(0)
+                        barR2 += DIMPLE.barcodeR.pop(0)
                     combined_sequence2 = barF2.seq[0:int(difference / 2)] + combined_sequence + barR2.seq.reverse_complement()[0:difference - int(difference / 2)]
                     gene.oligos.append(SeqRecord(combined_sequence2, id=combined_id, description=''))
             if all_grouped_oligos:
@@ -1093,11 +922,11 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                     combined_sequence = sequence_one.seq
                     difference = 230 - len(combined_sequence)
                     # print(len(tmpseq))
-                    barF2 = SPINEgene.barcodeF.pop(0)
-                    barR2 = SPINEgene.barcodeR.pop(0)
+                    barF2 = DIMPLE.barcodeF.pop(0)
+                    barR2 = DIMPLE.barcodeR.pop(0)
                     while difference / 2 > len(barF2):
-                        barF2 += SPINEgene.barcodeF.pop(0)
-                        barR2 += SPINEgene.barcodeR.pop(0)
+                        barF2 += DIMPLE.barcodeF.pop(0)
+                        barR2 += DIMPLE.barcodeR.pop(0)
                     combined_sequence2 = barF2.seq[0:int(difference / 2)] + combined_sequence + barR2.seq.reverse_complement()[0:difference - int(difference / 2)]
                     gene.oligos.append(SeqRecord(combined_sequence2, id=combined_id, description=''))
         # Export files (fasta)
@@ -1114,7 +943,7 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
         # print(tabulate(missingTable))
         # Fragments
         SeqIO.write(gene.oligos, os.path.join(folder.replace('\\', ''),
-                                                 gene.geneid + "_DMS_Oligos.fasta"), "fasta")
+                                                gene.geneid + "_DMS_Oligos.fasta"), "fasta")
         # Barcode Primers
         SeqIO.write(gene.barPrimer, os.path.join(folder.replace('\\', ''),
                                                  gene.geneid + "_DMS_Oligo_Primers.fasta"), "fasta")
@@ -1129,8 +958,8 @@ def combine_fragments(tandem, num_frag_per_oligo, split):
     tandem_seq = []
     barcodes = []
     if split:
-        tmpF = SPINEgene.barcodeF.pop(0)
-        tmpR = SPINEgene.barcodeR.pop(0)
+        tmpF = DIMPLE.barcodeF.pop(0)
+        tmpR = DIMPLE.barcodeR.pop(0)
     direction = -1
     while len(tandem) > num_frag_per_oligo:
         tmp = tandem.pop(0)
@@ -1141,10 +970,10 @@ def combine_fragments(tandem, num_frag_per_oligo, split):
                 name = tmp.id
                 tmp = tandem.pop(0)
                 if direction == 1:
-                    tmp_tandem += "G" + SPINEgene.cutsite.reverse_complement() + tmpR + tmpF + SPINEgene.cutsite + "C" + tmp.seq  # concatenate and add cut sites with buffer
+                    tmp_tandem += "G" + DIMPLE.cutsite.reverse_complement() + tmpR + tmpF + DIMPLE.cutsite + "C" + tmp.seq  # concatenate and add cut sites with buffer
                     direction = -1
                 else:
-                    tmp_tandem += "G" + SPINEgene.cutsite.reverse_complement() + tmpR + tmpF + SPINEgene.cutsite + "C" + tmp.seq.reverse_complement()  # concatenate and add cut sites with buffer
+                    tmp_tandem += "G" + DIMPLE.cutsite.reverse_complement() + tmpR + tmpF + DIMPLE.cutsite + "C" + tmp.seq.reverse_complement()  # concatenate and add cut sites with buffer
                     direction = 1
                 tandem_id += '+' + tmp.id
                 barcodes.append(SeqRecord(tmpR, id=name))
@@ -1152,10 +981,10 @@ def combine_fragments(tandem, num_frag_per_oligo, split):
             else:
                 tmp = tandem.pop(0)
                 if direction == 1:
-                    tmp_tandem += "G" + SPINEgene.cutsite.reverse_complement() + "ACGT" + SPINEgene.cutsite + "C" + tmp.seq  # concatenate and add cut sites with buffer
+                    tmp_tandem += "G" + DIMPLE.cutsite.reverse_complement() + "ACGT" + DIMPLE.cutsite + "C" + tmp.seq  # concatenate and add cut sites with buffer
                     direction = -1
                 else:
-                    tmp_tandem += "G" + SPINEgene.cutsite.reverse_complement() + "ACGT" + SPINEgene.cutsite + "C" + tmp.seq.reverse_complement()
+                    tmp_tandem += "G" + DIMPLE.cutsite.reverse_complement() + "ACGT" + DIMPLE.cutsite + "C" + tmp.seq.reverse_complement()
                     direction = 1
                 tandem_id += '+' + tmp.id
         tandem_seq.append(SeqRecord(tmp_tandem, id=tandem_id, description=''))
@@ -1171,10 +1000,10 @@ def combine_fragments(tandem, num_frag_per_oligo, split):
                 name = tmp.id
                 tmp = tandem.pop(0)
                 if direction == 1:
-                    tmp_tandem += "G" + SPINEgene.cutsite.reverse_complement() + "ACGT" + SPINEgene.cutsite + "C" + tmp.seq  # concatenate and add cut sites with buffer
+                    tmp_tandem += "G" + DIMPLE.cutsite.reverse_complement() + "ACGT" + DIMPLE.cutsite + "C" + tmp.seq  # concatenate and add cut sites with buffer
                     direction = 1
                 else:
-                    tmp_tandem += "G" + SPINEgene.cutsite.reverse_complement() + "ACGT" + SPINEgene.cutsite + "C" + tmp.seq.reverse_complement()  # concatenate and add cut sites with buffer
+                    tmp_tandem += "G" + DIMPLE.cutsite.reverse_complement() + "ACGT" + DIMPLE.cutsite + "C" + tmp.seq.reverse_complement()  # concatenate and add cut sites with buffer
                     direction = -1
                 tandem_id += '+' + tmp.id
                 barcodes.append(SeqRecord(tmpR, id=name))
@@ -1182,18 +1011,18 @@ def combine_fragments(tandem, num_frag_per_oligo, split):
             else:
                 tmp = tandem.pop(0)
                 if direction == -1:
-                    tmp_tandem += "G" + SPINEgene.cutsite.reverse_complement() + "ACGT" + SPINEgene.cutsite + "C" + tmp.seq  # concatenate and add cut sites with buffer
+                    tmp_tandem += "G" + DIMPLE.cutsite.reverse_complement() + "ACGT" + DIMPLE.cutsite + "C" + tmp.seq  # concatenate and add cut sites with buffer
                     direction = 1
                 else:
-                    tmp_tandem += "G" + SPINEgene.cutsite.reverse_complement() + "ACGT" + SPINEgene.cutsite + "C" + tmp.seq
+                    tmp_tandem += "G" + DIMPLE.cutsite.reverse_complement() + "ACGT" + DIMPLE.cutsite + "C" + tmp.seq
                     direction = -1
                 tandem_id += '+' + tmp.id
         difference = len(tandem_seq[-1].seq) - len(tmp_tandem)
-        barF = SPINEgene.barcodeF.pop(0)
-        barR = SPINEgene.barcodeR.pop(0)
+        barF = DIMPLE.barcodeF.pop(0)
+        barR = DIMPLE.barcodeR.pop(0)
         while difference / 2 > len(barF):
-            barF += SPINEgene.barcodeF.pop(0)
-            barR += SPINEgene.barcodeR.pop(0)
+            barF += DIMPLE.barcodeF.pop(0)
+            barR += DIMPLE.barcodeR.pop(0)
         tmpfrag = barF.seq[0:int(difference / 2)] + tmp_tandem + barR.seq.reverse_complement()[0:difference - int(difference / 2)]
         tandem_seq.append(SeqRecord(tmpfrag, id=tandem_id, description=''))
         print('Partial sequence' + str(len(tmpfrag)))
@@ -1201,8 +1030,8 @@ def combine_fragments(tandem, num_frag_per_oligo, split):
 
 
 def print_all(OLS, folder=''):
-    if not isinstance(OLS[0], SPINEgene):
-        raise TypeError('Not an instance of the SPINEgene class')
+    if not isinstance(OLS[0], DIMPLE):
+        raise TypeError('Not an instance of the DIMPLE class')
     alloligos = []
     allprimers = []
     for obj in OLS:
@@ -1218,12 +1047,10 @@ def print_all(OLS, folder=''):
 
 
 def post_qc(OLS):
-    if not isinstance(OLS[0], SPINEgene):
-        raise TypeError('Not an instance of the SPINEgene class')
+    if not isinstance(OLS[0], DIMPLE):
+        raise TypeError('Not an instance of the DIMPLE class')
     # Post QC
-    # all_oligos = list(SeqIO.parse(r'/Users/Luna/Google Drive/BIOLOGYPLUS/DNA DATABASE/P03 - SWITCH INSERTION/OLS_Library_Generation/OLS_003/All_Oligos.fasta','fasta'))
     all_oligos = []
-    # all_barPrimers = list(SeqIO.parse(r'/Users/Luna/Google Drive/BIOLOGYPLUS/DNA DATABASE/P03 - SWITCH INSERTION/OLS_Library_Generation/OLS_003/All_Primers.fasta','fasta'))
     all_barPrimers = []
     for obj in OLS:
         try:

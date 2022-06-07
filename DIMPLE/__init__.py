@@ -1,1 +1,1 @@
-from SPINE import SPINE
+from DIMPLE import DIMPLE

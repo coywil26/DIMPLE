@@ -11,10 +11,10 @@ def run():
     if app.wDir is None:
         app.wDir = app.geneFile.rsplit('/', 1)[0]+'/'
 
-    if any([x not in ['A', 'C', 'G', 'T', 'a', 'c', 'g', 't'] for x in app.handle.get()]):
-        raise ValueError('Genetic handle contains non nucleic bases')
+    #if any([x not in ['A', 'C', 'G', 'T', 'a', 'c', 'g', 't'] for x in app.handle.get()]):
+    #   raise ValueError('Genetic handle contains non nucleic bases')
 
-    DIMPLE.handle = app.handle.get()
+    #DIMPLE.handle = app.handle.get()
     DIMPLE.synth_len = int(app.oligoLen.get())
     overlapL = int(app.overlap.get())
     overlapR = int(app.overlap.get())
@@ -113,12 +113,12 @@ class Application(tk.Frame):
         def sub_ON():
             self.include_substitutions.set(1)
 
-        tk.Label(self, text='Type of mutations to generate', font="helvetica 12 underline").pack()
-        self.DIS_check = tk.Radiobutton(self, text="Deep Insertional Scan (Genetic Handle)", variable=self.mutationType, value=0)
-        self.DIS_check.pack()
-        self.DMS_check = tk.Radiobutton(self, text="Deep Mutational Scan", variable=self.mutationType, value=1, command=sub_ON)
-        self.DMS_check.pack()
-        self.DIS_check.select()
+        # tk.Label(self, text='Type of mutations to generate', font="helvetica 12 underline").pack()
+        # self.DIS_check = tk.Radiobutton(self, text="Deep Insertional Scan (Genetic Handle)", variable=self.mutationType, value=0)
+        # self.DIS_check.pack()
+        # self.DMS_check = tk.Radiobutton(self, text="Deep Mutational Scan", variable=self.mutationType, value=1, command=sub_ON)
+        # self.DMS_check.pack()
+        # self.DIS_check.select()
 
         tk.Label(self, text='Codon Usage', font="helvetica 12 underline").pack()
         self.ecoli_check = tk.Radiobutton(self, text="E. coli", variable=self.usage, value=1)
@@ -128,7 +128,8 @@ class Application(tk.Frame):
 
         def DMS_ON():
             if self.delete.get() or self.insert.get():
-                self.DMS_check.select()
+                return
+                #self.DMS_check.select()
 
         tk.Label(self, text='Settings for Indels', font="helvetica 12 underline").pack()
         self.delete_check = tk.Checkbutton(self, text="List of Deletions", variable=self.delete, command=DMS_ON)

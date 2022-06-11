@@ -68,7 +68,7 @@ class Application(tk.Frame):
         self.create_widgets()
 
     def create_widgets(self):
-        self.winfo_toplevel().title("SPINE Saturated Programmable INsertion Engineering")
+        self.winfo_toplevel().title("DIMPLE Deep Indel Missense Programmable Library Engineering")
         self.matchSequences = tk.IntVar()
         self.mutationType = tk.IntVar()
         self.usage = tk.IntVar()
@@ -151,7 +151,7 @@ class Application(tk.Frame):
         #self.matchSequences_check = tk.Checkbutton(self, text='Match Sequences', variable=self.matchSequences)
         #self.matchSequences_check.pack()
 
-        self.run = tk.Button(self, text='Run SPINE', command=run).pack()
+        self.run = tk.Button(self, text='Run DIMPLE', command=run).pack()
 
         self.output = tk.Text(self, height=10, width=60).pack()
 

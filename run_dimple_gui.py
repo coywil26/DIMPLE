@@ -100,7 +100,7 @@ class Application(tk.Frame):
         self.barcode_start = tk.Entry(self, textvariable=tk.StringVar(self, '0'))
         self.barcode_start.pack()
 
-        tk.Label(self, text='Type II restriction sequence').pack()
+        tk.Label(self, text='Type IIS restriction sequence').pack()
         self.restriction_sequence = tk.Entry(self, textvariable=tk.StringVar(self, 'CGTCTC'))
         self.restriction_sequence.pack()
 

@@ -133,8 +133,13 @@ class DIMPLE:
             'Val': ['GTA', 'GTC', 'GTG', 'GTT'],
             'Glu': ['GAG', 'GAA'],
             'Tyr': ['TAT', 'TAC']}
-        self.aminoacids = ['Cys', 'Asp', 'Ser', 'Gln', 'Met', 'Asn', 'Pro', 'Lys', 'Thr', 'Phe', 'Ala', 'Gly', 'Ile', 'Leu',
-                        'His', 'Arg', 'Trp', 'Val', 'Glu', 'Tyr']
+        if self.stop_codon:
+            self.aminoacids = ['Cys', 'Asp', 'Ser', 'Gln', 'Met', 'Asn', 'Pro', 'Lys', 'Thr', 'Phe', 'Ala', 'Gly', 'Ile', 'Leu',
+                        'His', 'Arg', 'Trp', 'Val', 'Glu', 'Tyr', 'STOP']
+        else:
+            self.aminoacids = ['Cys', 'Asp', 'Ser', 'Gln', 'Met', 'Asn', 'Pro', 'Lys', 'Thr', 'Phe', 'Ala', 'Gly',
+                               'Ile', 'Leu',
+                               'His', 'Arg', 'Trp', 'Val', 'Glu', 'Tyr']
         self.complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
 
         # First check for unwanted cutsites (BsaI sites and BsmBI sites)

@@ -8,6 +8,8 @@ from tkinter import filedialog
 
 
 def run():
+    if not any([app.delete.get(), app.insert.get(), app.include_substitutions.get()]):
+        raise ValueError('You must select a mutation type')
     if app.wDir is None:
         app.wDir = app.geneFile.rsplit('/', 1)[0]+'/'
 
@@ -32,6 +34,7 @@ def run():
     DIMPLE.barcodeR = DIMPLE.barcodeR[int(app.barcode_start.get()):]
     DIMPLE.cutsite = Seq(app.restriction_sequence.get())
     DIMPLE.avoid_sequence = [Seq(x) for x in app.avoid_sequence.get().split(',')]
+    DIMPLE.stop_codon = app.stop.get()
     if app.mutationType.get() == 1:
         DIMPLE.dms = True
     else:
@@ -75,6 +78,7 @@ class Application(tk.Frame):
         self.include_substitutions = tk.IntVar()
         self.delete = tk.IntVar()
         self.insert = tk.IntVar()
+        self.stop = tk.IntVar()
 
         self.wDir_file = tk.Button(self, text='Working Directory', command=self.browse_wDir)
         self.wDir_file.pack()
@@ -93,8 +97,8 @@ class Application(tk.Frame):
         self.fragmentLen.pack()
 
         tk.Label(self, text='Fragment Overlap (This will change if deletions are selected)').pack()
-        self.overlap = tk.Entry(self, textvariable=tk.StringVar(self, '3'))
-        self.overlap.pack()
+        self.overlap = tk.Entry(self, textvariable=tk.StringVar(self, '4'))
+        #self.overlap.pack()
 
         tk.Label(self, text='Barcode Start position').pack()
         self.barcode_start = tk.Entry(self, textvariable=tk.StringVar(self, '0'))
@@ -109,6 +113,9 @@ class Application(tk.Frame):
         self.avoid_sequence.pack()
 
         self.handle = 'AGCGGGAGACCGGGGTCTCTGAGC'
+
+        self.stop_codon = tk.Checkbutton(self, text="Include Stop Codons", variable=self.stop)
+        self.stop_codon.pack()
 
         def sub_ON():
             self.include_substitutions.set(1)
@@ -131,7 +138,7 @@ class Application(tk.Frame):
                 return
                 #self.DMS_check.select()
 
-        tk.Label(self, text='Settings for Indels', font="helvetica 12 underline").pack()
+        tk.Label(self, text='Select Mutations', font="helvetica 12 underline").pack()
         self.delete_check = tk.Checkbutton(self, text="List of Deletions", variable=self.delete, command=DMS_ON)
         self.delete_check.pack()
         self.delete_check.deselect()

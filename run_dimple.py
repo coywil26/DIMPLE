@@ -21,6 +21,7 @@ parser.add_argument('-include_substitutions', default=True, help='If you are run
 parser.add_argument('-barcode_start', default=0, help='To run DIMPLE multiple times, you will need to avoid using the same barcodes. This allows you to start at a different barcode.')
 parser.add_argument('-restriction_sequence', default='CGTCTC', help='Recommended using BsmBI - CGTCTC or BsaI - GGTCTC')
 parser.add_argument('-avoid_sequence', nargs='+', default=['CGTCTC', 'GGTCTC'], help='Avoid these sequences in the backbone - BsaI and BsmBI. For multiple sequnces use a space between inputs. Example -avoid_sequence CGTCTC GGTCTC')
+parser.add_argument('-include_stop_codons', default=False, const=True, action='store_const')
 args = parser.parse_args()
 
 if args.wDir is None:
@@ -53,6 +54,7 @@ DIMPLE.barcodeF = DIMPLE.barcodeF[int(args.barcode_start):]
 DIMPLE.barcodeR = DIMPLE.barcodeR[int(args.barcode_start):]
 DIMPLE.cutsite = Seq(args.restriction_sequence)
 DIMPLE.avoid_sequence = [Seq(x) for x in args.avoid_sequence]
+DIMPLE.stop_codon = args.include_stop_codons
 if DIMPLE.dms:
     if args.usage:
         DIMPLE.usage = args.usage

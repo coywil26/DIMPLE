@@ -17,6 +17,7 @@ Use align_genevariation()
 """
 
 from Bio import SeqIO
+from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqUtils import MeltingTemp as mt
 from Bio import pairwise2
@@ -26,6 +27,7 @@ from math import ceil
 import itertools
 from difflib import SequenceMatcher
 from random import randrange
+import warnings
 
 
 def addgene(genefile, start=[], end=[]):
@@ -704,14 +706,15 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                     print("------------------ Fragment size swapped due to non-specific primers ------------------")
                     skip = switch_fragmentsize(gene, idx, OLS)
                     if skip:
-                        print("Gene primer at the end of gene has non specific annealing. Try lengthening that primer")
-                        print(forward)
-
+                        warnings.warn("Gene primer at the end of gene has non specific annealing. Try lengthening that primer")
                         # if end of gene, try to extend primer to make it more specific?
-                        #if tmpr:
-                        #    reverse +=
-                        #if tmpf:
-                        #    forward +=
+                        if tmpr:
+                            print(reverse)
+                            reverse += genefrag_R[sR-1]
+                        if tmpf:
+                            print(forward)
+                            idx -= 1
+                            forward += Seq(genefrag_F.reverse_complement()[sF-1]).reverse_complement()
                     else:
                         # Quality Control for overhangs from the same gene
                         # check_overhangs(gene, OLS)

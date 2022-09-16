@@ -623,15 +623,22 @@ def check_overhangs(gene, OLS, overlapL, overlapR):
     if not isinstance(gene, DIMPLE):
         raise TypeError('Not an instance of the DIMPLE class')
     while True:
-        overhang = []
-        for idx, y in enumerate(gene.breaklist):
-            overhang.append([gene.seq[y[0] - 4 - overlapL: y[0] - overlapR], idx])  # Forward overhang
-            overhang.append([gene.seq[y[1] + overlapL: y[1] + 4 + overlapR], idx + 1])  # Reverse overhang
         detectedsites = set()  # stores matching overhangs
-        for i in range(len(overhang)):  # check each overhang for matches
-            for j in [x for x in range(len(overhang)) if x != i]:  # permutate over every overhang combination to find matches
-                if overhang[i][0] == overhang[j][0] or overhang[i][0][:3] == overhang[j][0][:3] or overhang[i][0][1:] == overhang[j][0][1:] or overhang[i][0] == overhang[i][0].reverse_complement():  # no 3 matching bases
-                    detectedsites.update([overhang[i][1]])
+        for idx, y in enumerate(gene.breaklist):
+            overhang_F = gene.seq[y[0] - 4 - overlapL: y[0] - overlapR]  # Forward overhang
+            overhang_R = gene.seq[y[1] + overlapL: y[1] + 4 + overlapR]  # Reverse overhang
+            if overhang_F == overhang_R or overhang_F == overhang_R.reverse_complement():
+                detectedsites.update(idx)
+        # overhang = []
+        # for idx, y in enumerate(gene.breaklist):
+        #     overhang.append([gene.seq[y[0] - 4 - overlapL: y[0] - overlapR], idx])  # Forward overhang
+        #     overhang.append([gene.seq[y[1] + overlapL: y[1] + 4 + overlapR], idx + 1])  # Reverse overhang
+        # detectedsites = set()  # stores matching overhangs
+        # for i in range(len(overhang)):  # check each overhang for matches
+        #     for j in [x for x in range(len(overhang)) if x != i]:  # permutate over every overhang combination to find matches
+        #         #if overhang[i][0] == overhang[j][0] or overhang[i][0][:3] == overhang[j][0][:3] or overhang[i][0][1:] == overhang[j][0][1:] or overhang[i][0] == overhang[i][0].reverse_complement():  # no 3 matching bases
+        #         if overhang[i][0] == overhang[j][0] or overhang[i][0] == overhang[i][0].reverse_complement():  # no 3 matching bases
+        #             detectedsites.update([overhang[i][1]])
         for detectedsite in detectedsites:
             switched = True
             if detectedsite == 0:

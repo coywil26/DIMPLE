@@ -7,8 +7,7 @@ biopython <br />
 numpy
 
 # Data Formats
-Targeted genes must be in fasta format and include a minimum of 30 bases surrounding gene.
-Entire plasmid sequence is advised to search for nonspecific amplification <br />
+Targeted genes must be in fasta format and include the entire plasmid sequence to search for nonspecific amplification <br />
 Final output is fasta format. One file for oligo pools and one file for PCR primers
 
 # Position arguments
@@ -19,33 +18,44 @@ To define gene position within given fasta file, add start:# end:# to fasta desc
 '>geneA start:11 end:40'
 
 # Running Test
-Domain Insertion Scanning:
-python3 run_spine.py -wDir tests -geneFile combined_fasta.fa -oligoLen 230 -mutationType DIS
+Deep Mutational Scanning with amino acid subsitution with stop codons and ecoli codon usage, GGG insertion, 3 base deletion, and BsaI golden gate:
+python run_dimple.py -wDir tests -geneFile combined_fasta.fa -oligoLen 230 -DMS -usage ecoli -include_stop_codons -restriction_sequence GGTCTC -avoid_sequence GGTCTC -insertions GGG -deletions 3
 
-Deep Mutational Scanning:
-python3 run_spine.py -wDir tests -geneFile Kir.fa -oligoLen 230 -mutationType DMS -usage ecoli
-
-# Usage
+# Commandline Usage
 ```
-optional arguments:
--h, --help                 show this help message and exit
--wDir WDIR                 Working directory for fasta files and output folder
--geneFile GENEFILE         Input all gene sequences including backbone in a fasta
-                           format. Place all in one fasta file. Name description
-                           can include start and end points (>gene1 start:1
-                           end:2)
--handle HANDLE             Genetic handle for domain insertion.  This is important
-                           for defining the linker. Currently uses BsaI (4 base
-                           overhang), but this can be swapped for SapI (3 base
-                           overhang).
--matchSequences            Find similar sequences between genes to avoid printing
-                           the same oligos multiple times. Default: No matching
--oligoLen OLIGOLEN         Synthesized oligo length
--fragmentLen FRAGMENTLEN   Maximum length of gene fragment
--overlap OVERLAP           Enter number of bases to extend each fragment for
-                           overlap. This could help with insertion coverage close to
-                           fragment boundary. Overlap does not add additional
-                           insertions and thus no additional oligos.
--mutationType              Run deep insertion scan "DIS" or deep mutation scan "DMS"
--usage USAGE               Default is "human". Or select "ecoli"
+arguments:
+  -h, --help                                  show this help message and exit
+  -wDir WDIR                                  Working directory for fasta files and output folder
+  -geneFile GENEFILE                          Input all gene sequences including backbone in a fasta format. Place all in one fasta file. 
+                                              Name description can include start and end points (>gene1 start:1 end:2)
+  -matchSequences                             Find similar sequences between genes to avoid printing the same oligos multiple times. Default: No matching
+  -oligoLen OLIGOLEN                          Synthesized oligo length
+  -fragmentLen FRAGMENTLEN                    Maximum length of gene fragment
+  -overlap OVERLAP                            Enter number of bases to extend each fragment for overlap. This will help with insertions close to fragment boundary
+  -DMS                                        Choose if you will run deep deep mutation scan
+  -usage USAGE                                Default is "human". Or select "ecoli. Or change code"
+  -insertions INSERTIONS                      Enter a list of insertions (nucleotides) to make at every position. 
+                                              Note, you should enter multiples of 3 nucleotides to maintain reading frame
+  -deletions DELETIONS                        Enter a list of deletions (number of nucleotides) to symmetrically delete (it will make deletions in multiples of 2x). 
+                                              Note you should enter multiples of 3 to maintain reading frame
+  -barcode_start BARCODE_START                To run DIMPLE multiple times, you will need to avoid using the same barcodes. 
+                                              This allows you to start at a different barcode.
+  -restriction_sequence RESTRICTION_SEQUENCE  Recommended using BsmBI - CGTCTC or BsaI - GGTCTC
+  -avoid_sequence AVOID_SEQUENCE              Avoid these sequences in the backbone - BsaI and BsmBI. For multiple sequnces use a space between inputs. 
+                                              Example -avoid_sequence CGTCTC GGTCTC
+  -include_stop_codons                        Include stop codons in the list of scanning mutations.
+```
+
+# GUI Usage
+```
+Run the GUI with the commandline prompt python run_dimple_gui.py
+
+This will bring up the window
+![image](https://user-images.githubusercontent.com/25623801/206515378-b885d769-d358-4e0a-a844-e491ef5f3acd.png)
+
+You must select:
+  Target Gene File - select fasta file with name description including start and end points (>gene1 start:1 end:2)
+  One or more of the mutations to make to the target gene
+  
+ Run the program by pressing Run DIMPLE
 ```

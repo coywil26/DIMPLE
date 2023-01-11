@@ -669,7 +669,7 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
             switch_fragmentsize(gene, 1, OLS)
     for ii, gene in enumerate(OLS):
         print('--------------------------------- Analyzing Gene:' + gene.geneid + ' ---------------------------------')
-        gene.breaklist[0][0] += 3  # Do not mutate first codon
+        gene.breaklist[0][0] += 0  # Do not mutate first codon
         gene.fragsize[0] += -3  # Adjust size to match breaklist
         gene.maxfrag = DIMPLE.maxfrag
         if not any([tmp in finishedGenes for tmp in gene.linked]):  # only run analysis for one of the linked genes
@@ -694,7 +694,7 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                 gene.genePrimer = []
             frag = gene.breaklist[idx]
             grouped_oligos = []
-            fragstart = str(int((frag[0] - DIMPLE.primerBuffer) / 3) + 1)
+            fragstart = str(int((frag[0] - DIMPLE.primerBuffer) / 3))
             fragend = str(int((frag[1] - DIMPLE.primerBuffer) / 3))
             print('Creating Gene:' + gene.geneid + ' --- Fragment:' + fragstart + '-' + fragend)
             if not any([tmp in finishedGenes for tmp in gene.linked]):  # only run analysis for one of the linked genes

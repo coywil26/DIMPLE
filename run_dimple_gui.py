@@ -5,9 +5,11 @@ from DIMPLE.DIMPLE import align_genevariation, print_all, post_qc, addgene, DIMP
 from Bio.Seq import Seq
 import tkinter as tk
 from tkinter import filedialog
+from tkinter import messagebox
 
 def run():
     if not any([app.delete.get(), app.insert.get(), app.include_substitutions.get()]):
+        messagebox.showerror('Python Error', 'Error: You must select a mutation type.')
         raise ValueError('You must select a mutation type')
     if app.wDir is None:
         app.wDir = app.geneFile.rsplit('/', 1)[0]+'/'
@@ -75,7 +77,7 @@ def run():
         insertions = False
     else:
         insertions = app.insertions.get().split(',')
-    generate_DMS_fragments(OLS, overlapL, overlapR, app.include_substitutions.get(), insertions, deletions, app.wDir)
+    generate_DMS_fragments(OLS, overlapL, overlapR, app.synonymous.get(), app.include_substitutions.get(), insertions, deletions, app.wDir)
 
     post_qc(OLS)
     print_all(OLS, app.wDir)
@@ -97,6 +99,7 @@ class Application(tk.Frame):
         self.delete = tk.IntVar()
         self.insert = tk.IntVar()
         self.stop = tk.IntVar()
+        self.synonymous = tk.IntVar()
 
         self.wDir_file = tk.Button(self, text='Working Directory', command=self.browse_wDir)
         self.wDir_file.pack()
@@ -134,6 +137,11 @@ class Application(tk.Frame):
 
         self.stop_codon = tk.Checkbutton(self, text="Include Stop Codons", variable=self.stop)
         self.stop_codon.pack()
+        self.stop_codon.select()
+
+        self.synonymous_check = tk.Checkbutton(self, text="Include Synonymous Mutations", variable=self.synonymous)
+        self.synonymous_check.pack()
+        self.synonymous_check.select()
 
         def sub_ON():
             self.include_substitutions.set(1)

@@ -650,7 +650,7 @@ def check_overhangs(gene, OLS, overlapL, overlapR):
     return switched
 
 
-def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, delete=False, folder=''):
+def generate_DMS_fragments(OLS, overlapL, overlapR, synonymous, dms=True, insert=False, delete=False, folder=''):
     # dms set to true for subsitition mutations
     # insert set to a list of insertions
     # delete set to a list of numbers of symmetrical deletions
@@ -777,25 +777,26 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, dms=True, insert=False, dele
                         wt_codon = tmpseq[i:i + 3].upper()
                         wt = [name for name, codon in gene.SynonymousCodons.items() if wt_codon in codon]
                         # note that we also create synonymous wt codons
-                        for jk in (x for x in gene.aminoacids):  # if x not in wt[0]):
-                            codons = [aa for aa in gene.SynonymousCodons[jk] if aa not in wt_codon]
-                            p = [gene.usage[aa] for aa in codons]  # Find probabilities but not wild type codon
-                            p = [xp if xp > 0.1 else 0 for xp in p]  # Remove probabilities below 0.1
-                            p = [xp / sum(p) for xp in p]  # Normalize to 1
-                            if not p:
-                                continue
-                            mutation = np.random.choice(codons, 1, p)  # Pick one codon
-                            xfrag = tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]  # Add mutation to fragment
-                            # Check each cassette for more than 2 BsmBI and 2 BsaI sites
-                            while any([(xfrag.upper().count(x) + xfrag.upper().count(x.reverse_complement())) > 2 for x in DIMPLE.avoid_sequence]):
-                                warnings.warn('Found avoided sequences')  # change codon
-                                mutation = np.random.choice(gene.SynonymousCodons[jk], 1, p)  # Pick one codon
-                                xfrag = tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]
-                            mutations.append('>' + wt[0] + str(int((frag[0] + i + 3 - offset - DIMPLE.primerBuffer) / 3)) + jk)
-                            mutations.append(mutation[0])
-                            dms_sequences.append(SeqRecord(xfrag,
-                                                          id=gene.geneid + "_DMS-" + str(idx + 1) + "_" + wt[0] + str(int((frag[0] + i + 3 - offset - DIMPLE.primerBuffer) / 3)) + jk,
-                                                          description='Frag '+fragstart + "-" + fragend))
+                        for jk in (x for x in gene.aminoacids):
+                            if jk not in wt[0] or synonymous:
+                                codons = [aa for aa in gene.SynonymousCodons[jk] if aa not in wt_codon]
+                                p = [gene.usage[aa] for aa in codons]  # Find probabilities but not wild type codon
+                                p = [xp if xp > 0.1 else 0 for xp in p]  # Remove probabilities below 0.1
+                                p = [xp / sum(p) for xp in p]  # Normalize to 1
+                                if not p:
+                                    continue
+                                mutation = np.random.choice(codons, 1, p)  # Pick one codon
+                                xfrag = tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]  # Add mutation to fragment
+                                # Check each cassette for more than 2 BsmBI and 2 BsaI sites
+                                while any([(xfrag.upper().count(x) + xfrag.upper().count(x.reverse_complement())) > 2 for x in DIMPLE.avoid_sequence]):
+                                    warnings.warn('Found avoided sequences')  # change codon
+                                    mutation = np.random.choice(gene.SynonymousCodons[jk], 1, p)  # Pick one codon
+                                    xfrag = tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]
+                                mutations.append('>' + wt[0] + str(int((frag[0] + i + 3 - offset - DIMPLE.primerBuffer) / 3)) + jk)
+                                mutations.append(mutation[0])
+                                dms_sequences.append(SeqRecord(xfrag,
+                                                              id=gene.geneid + "_DMS-" + str(idx + 1) + "_" + wt[0] + str(int((frag[0] + i + 3 - offset - DIMPLE.primerBuffer) / 3)) + jk,
+                                                              description='Frag '+fragstart + "-" + fragend))
                     with open(os.path.join(folder.replace('\\', ''), gene.geneid + "_mutations.csv"),'w') as file:
                         for mut in mutations:
                             file.write(str(mut)+'\n')

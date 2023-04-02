@@ -773,7 +773,7 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, synonymous, dms=True, insert
                 # DMS
                 dms_sequences = []
                 if dms:
-                    for i in range(offset, offset + frag[1] - frag[0], 3):
+                    for i in range(offset, offset + frag[1] - frag[0]+3, 3):
                         wt_codon = tmpseq[i:i + 3].upper()
                         wt = [name for name, codon in gene.SynonymousCodons.items() if wt_codon in codon]
                         # note that we also create synonymous wt codons
@@ -802,7 +802,7 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, synonymous, dms=True, insert
                             file.write(str(mut)+'\n')
                 if insert:
                     # insertion
-                    for i in range(offset, offset + frag[1] - frag[0], 3):
+                    for i in range(offset, offset + frag[1] - frag[0]+3, 3):
                         for insert_n in insert:
                             xfrag = tmpseq[0:i] + insert_n + tmpseq[i:]  # Add mutation to fragment
                             # Check each cassette for more than 2 BsmBI and 2 BsaI sites
@@ -816,7 +816,7 @@ def generate_DMS_fragments(OLS, overlapL, overlapR, synonymous, dms=True, insert
                                                           description='Frag '+fragstart + "-" + fragend))
                 if delete:
                     # deletion
-                    for i in range(offset, offset + frag[1] - frag[0], 3):
+                    for i in range(offset, offset + frag[1] - frag[0]+3, 3):
                         for delete_n in delete:
                             if delete_n+i > len(tmpseq):
                                 raise ValueError('deletions cannot be larger than fragment itself')

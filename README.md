@@ -49,13 +49,14 @@ arguments:
   -avoid_sequence AVOID_SEQUENCE              Avoid these sequences in the backbone - BsaI and BsmBI. For multiple sequnces use a space between inputs. 
                                               Example -avoid_sequence CGTCTC GGTCTC
   -include_stop_codons                        Include stop codons in the list of scanning mutations.
+  -include_synonymous                         Include synonymous codons in the list of scanning mutations.
 ```
 
 # GUI Usage
 ```
 Run the GUI with the commandline prompt: python run_dimple_gui.py
 ```
-![image](https://user-images.githubusercontent.com/25623801/206515378-b885d769-d358-4e0a-a844-e491ef5f3acd.png)
+![DIMPLE_GUI](https://user-images.githubusercontent.com/25623801/229153990-dc4a82e8-31f7-4914-b078-fbdb8c855761.png)
 ```
 You must select:
   -Target Gene File - select fasta file with name description including start and end points (>gene1 start:1 end:2)

@@ -21,7 +21,8 @@ parser.add_argument('-deletions', default=False, nargs='+', help='Enter a list o
 parser.add_argument('-barcode_start', default=0, help='To run DIMPLE multiple times, you will need to avoid using the same barcodes. This allows you to start at a different barcode.')
 parser.add_argument('-restriction_sequence', default='CGTCTC', help='Recommended using BsmBI - CGTCTC or BsaI - GGTCTC')
 parser.add_argument('-avoid_sequence', nargs='+', default=['CGTCTC', 'GGTCTC'], help='Avoid these sequences in the backbone - BsaI and BsmBI. For multiple sequnces use a space between inputs. Example -avoid_sequence CGTCTC GGTCTC')
-parser.add_argument('-include_stop_codons', default=False, const=True, action='store_const')
+parser.add_argument('-include_stop_codons', help='Include stop codons in the list of scanning mutations.', default=False, const=True, action='store_const')
+parser.add_argument('-include_synonymous', help='Include synonymous codons in the list of scanning mutations.', default=False, const=True, action='store_const')
 args = parser.parse_args()
 
 if args.wDir is None:
@@ -85,7 +86,7 @@ if args.deletions:
     args.deletions = [int(x) for x in args.deletions]
 if not any([DIMPLE.dms, args.insertions, args.deletions]):
     raise ValueError("Didn't select any mutations to generate")
-generate_DMS_fragments(OLS, args.overlap, args.overlap, DIMPLE.dms, args.insertions, args.deletions, args.wDir)
+generate_DMS_fragments(OLS, args.overlap, args.overlap, args.include_synonymous, DIMPLE.dms, args.insertions, args.deletions, args.wDir)
 
 post_qc(OLS)
 print_all(OLS, args.wDir)

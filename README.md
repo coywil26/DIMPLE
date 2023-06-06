@@ -2,6 +2,11 @@
 ### Protein domain insertion via programmed oligo libraries
 Python script for generating oligo libraries and PCR primers for programmed domain insertion
 
+# License
+
+This code is licensed under the terms of the MIT license: 
+[License](License.txt)
+
 # Python Dependencies
 biopython <br />
 numpy

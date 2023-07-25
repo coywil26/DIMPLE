@@ -901,7 +901,7 @@ def check_overhangs(gene, OLS, overlapL, overlapR):
                 overhang_F == overhang_R
                 or overhang_F == overhang_R.reverse_complement()
             ):
-                detectedsites.update(idx)
+                detectedsites.update([idx])
         # overhang = []
         # for idx, y in enumerate(gene.breaklist):
         #     overhang.append([gene.seq[y[0] - 4 - overlapL: y[0] - overlapR], idx])  # Forward overhang

@@ -40,8 +40,6 @@ def addgene(genefile, start=None, end=None):
         start = []
     if end is None:
         end = []
-    if genefile[-1] == " ":
-        genefile = genefile[0:-1]
     tmpgene = list(SeqIO.parse(genefile.replace("\\", ""), "fasta"))
     tmpOLS = []
     for gene in tmpgene:

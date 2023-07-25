@@ -79,7 +79,7 @@ elif args.usage == 'human':
 else:
     DIMPLE.usage = args.usage
 
-OLS = addgene(os.path.join(args.wDir,args.geneFile))
+OLS = addgene(os.path.join(args.wDir,args.geneFile).strip())
 
 if args.matchSequences == 'match':
     align_genevariation(OLS)

@@ -4,6 +4,7 @@
 import argparse
 from DIMPLE.DIMPLE import align_genevariation, print_all, post_qc, addgene, DIMPLE, generate_DMS_fragments
 from Bio.Seq import Seq
+import os
 
 parser = argparse.ArgumentParser(description="DIMPLE: Deep Indel Missense Programmable Library Engineering")
 parser.add_argument('-wDir', help='Working directory for fasta files and output folder')
@@ -78,7 +79,7 @@ elif args.usage == 'human':
 else:
     DIMPLE.usage = args.usage
 
-OLS = addgene(args.wDir+'/'+args.geneFile)
+OLS = addgene(os.path.join(args.wDir,args.geneFile))
 
 if args.matchSequences == 'match':
     align_genevariation(OLS)

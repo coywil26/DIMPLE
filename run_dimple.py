@@ -3,6 +3,7 @@
 
 import argparse
 from DIMPLE.DIMPLE import align_genevariation, print_all, post_qc, addgene, DIMPLE, generate_DMS_fragments
+from DIMPLE.utilities import parse_custom_mutations
 from Bio.Seq import Seq
 import os
 
@@ -89,7 +90,15 @@ if args.deletions:
     args.deletions = [int(x) for x in args.deletions]
 if not any([DIMPLE.dms, args.insertions, args.deletions]):
     raise ValueError("Didn't select any mutations to generate")
-generate_DMS_fragments(OLS, args.overlap, args.overlap, args.include_synonymous, args.custom_mutations, DIMPLE.dms, args.insertions, args.deletions, args.dis, args.wDir)
+
+if args.custom_mutations:
+    # load file with custom mutations
+    with open(args.custom_mutations) as f:
+        custom_mutations = f.readlines()
+    # parse custom mutations
+    custom_mutations = parse_custom_mutations(custom_mutations)
+
+generate_DMS_fragments(OLS, args.overlap, args.overlap, args.include_synonymous, custom_mutations, DIMPLE.dms, args.insertions, args.deletions, args.dis, args.wDir)
 
 post_qc(OLS)
 print_all(OLS, args.wDir)

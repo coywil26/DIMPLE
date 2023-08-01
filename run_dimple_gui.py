@@ -2,6 +2,7 @@
 # script for GUI
 
 from DIMPLE.DIMPLE import align_genevariation, print_all, post_qc, addgene, DIMPLE, generate_DMS_fragments
+from DIMPLE.utilities import parse_custom_mutations
 from Bio.Seq import Seq
 import tkinter as tk
 from tkinter import filedialog
@@ -265,25 +266,7 @@ class Application(tk.Frame):
         def on_closing():
             # set custom mutations
             mutation_text = custom_mutations_window.get("1.0", 'end-1c').strip().split('\n')
-
-            for set in mutation_text[1:]:
-                set = set.split(':')
-                if set[1] == 'All':
-                    if '-' in set[0]:
-                        for i in range(int(set[0].split('-')[0]), int(set[0].split('-')[1])+1):
-                           self.custom_mutations[i] = 'A,C,D,E,F,G,H,I,K,L,M,N,P,Q,R,S,T,V,W,Y'
-                    else:
-                        self.custom_mutations[int(set[0])] = 'A,C,D,E,F,G,H,I,K,L,M,N,P,Q,R,S,T,V,W,Y'
-                else:
-                    if '-' in set[0]:
-                        for i in range(int(set[0].split('-')[0]), int(set[0].split('-')[1])+1):
-                            self.custom_mutations[i] = set[1]
-                    else:
-                        # if mutation exists, add to it
-                        if int(set[0]) in self.custom_mutations.keys():
-                            self.custom_mutations[int(set[0])] = self.custom_mutations[int(set[0])] + ',' + set[1]
-                        else:
-                            self.custom_mutations[int(set[0])] = set[1]
+            self.custom_mutations = parse_custom_mutations(mutation_text[1:])
             newWindow.destroy()
         newWindow.protocol("WM_DELETE_WINDOW", on_closing)
         self.custom_mutations_button.config(bg='green', activebackground='green', relief=tk.SUNKEN)

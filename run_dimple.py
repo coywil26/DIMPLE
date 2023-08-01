@@ -89,7 +89,7 @@ if args.deletions:
     args.deletions = [int(x) for x in args.deletions]
 if not any([DIMPLE.dms, args.insertions, args.deletions]):
     raise ValueError("Didn't select any mutations to generate")
-generate_DMS_fragments(OLS, args.overlap, args.overlap, args.custom_mutations, args.include_synonymous, DIMPLE.dms, args.insertions, args.deletions, args.dis, args.wDir)
+generate_DMS_fragments(OLS, args.overlap, args.overlap, args.include_synonymous, args.custom_mutations, DIMPLE.dms, args.insertions, args.deletions, args.dis, args.wDir)
 
 post_qc(OLS)
 print_all(OLS, args.wDir)

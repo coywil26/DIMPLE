@@ -64,6 +64,7 @@ def run():
     DIMPLE.stop_codon = app.stop.get()
     DIMPLE.dms = app.include_substitutions.get()
     DIMPLE.make_double = app.make_double.get()
+    DIMPLE.handle = app.handle
     print(DIMPLE.usage)
 
     OLS = addgene(app.geneFile)
@@ -78,7 +79,7 @@ def run():
         insertions = False
     else:
         insertions = app.insertions.get().split(',')
-    generate_DMS_fragments(OLS, overlapL, overlapR, app.custom_mutations, app.synonymous.get(), app.include_substitutions.get(), insertions, deletions, app.dis, app.wDir)
+    generate_DMS_fragments(OLS, overlapL, overlapR, app.synonymous.get(), app.custom_mutations, app.include_substitutions.get(), insertions, deletions, app.dis.get(), app.wDir)
 
     post_qc(OLS)
     print_all(OLS, app.wDir)
@@ -216,7 +217,7 @@ class Application(tk.Frame):
 
         self.substitutions = tk.Entry(self, width=80, textvariable=tk.StringVar(self, "Cys,Asp,Ser,Gln,Met,Asn,Pro,Lys,Thr,Phe,Ala,Gly,Ile,Leu,His,Arg,Trp,Val,Glu,Tyr"))
         self.substitutions.pack()
-        
+
         self.double_it.pack()
         self.double_it.deselect()
 

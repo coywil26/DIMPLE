@@ -32,6 +32,7 @@ from Bio import SeqIO, pairwise2
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqUtils import MeltingTemp as mt
+from Bio.SeqUtils import seq3
 
 
 def addgene(genefile, start=None, end=None):
@@ -1110,7 +1111,7 @@ def generate_DMS_fragments(
                 dms_sequences = []
                 dms_sequences_double = []
                 # list positions to mutate
-                if custom_mutations != {}:
+                if custom_mutations:
                     # find custom mutations in the fragment range
                     tmp_positions = list(custom_mutations.keys())
                     tmp_tmp_positions = [
@@ -1135,10 +1136,9 @@ def generate_DMS_fragments(
                             for name, codon in gene.SynonymousCodons.items()
                             if wt_codon in codon
                         ]
-                        # note that we also create synonymous wt codons
-                        if custom_mutations != {}:
+                        if custom_mutations:
                             mutations_to_make = [
-                                AA_convert[x]
+                                seq3[x]
                                 for x in custom_mutations[
                                     positions[mut_positions.index(i)]
                                 ].split(",")
@@ -1146,6 +1146,7 @@ def generate_DMS_fragments(
                         else:
                             mutations_to_make = gene.aminoacids
                         for jk in (x for x in mutations_to_make):
+                            # check if synonymous and if user wants these mutations
                             if jk not in wt[0] or synonymous:
                                 codons = [
                                     aa

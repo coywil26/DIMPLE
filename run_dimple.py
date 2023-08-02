@@ -6,6 +6,7 @@ from DIMPLE.DIMPLE import align_genevariation, print_all, post_qc, addgene, DIMP
 from DIMPLE.utilities import parse_custom_mutations
 from Bio.Seq import Seq
 import os
+import ast
 
 parser = argparse.ArgumentParser(description="DIMPLE: Deep Indel Missense Programmable Library Engineering")
 parser.add_argument('-wDir', help='Working directory for fasta files and output folder')
@@ -80,7 +81,9 @@ elif args.usage == 'human':
         'GCT': 0.26, 'GCC': 0.4, 'GCA': 0.23, 'GCG': 0.11, 'GGT': 0.16, 'GGC': 0.34, 'GGA': 0.25, 'GGG': 0.25
     }
 else:
-    DIMPLE.usage = args.usage
+    with open(args.usage) as f:
+        usage = f.readlines()
+    DIMPLE.usage = ast.literal_eval(usage.strip('\n'))
 
 OLS = addgene(os.path.join(args.wDir, args.geneFile).strip())
 

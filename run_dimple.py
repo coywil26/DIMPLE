@@ -3,22 +3,26 @@
 
 import argparse
 from DIMPLE.DIMPLE import align_genevariation, print_all, post_qc, addgene, DIMPLE, generate_DMS_fragments
+from DIMPLE.utilities import parse_custom_mutations
 from Bio.Seq import Seq
 import os
+import ast
 
 parser = argparse.ArgumentParser(description="DIMPLE: Deep Indel Missense Programmable Library Engineering")
 parser.add_argument('-wDir', help='Working directory for fasta files and output folder')
 parser.add_argument('-geneFile', required=True, help='Input all gene sequences including backbone in a fasta format. Place all in one fasta file. Name description can include start and end points (>gene1 start:1 end:2)')
-#parser.add_argument('-handle', default='AGCGGGAGACCGGGGTCTCTGAGC', help='Genetic handle for domain insertion. This is important for defining the linker. Currently uses BsaI (4 base overhang), but this can be swapped for SapI (3 base overhang).')
+parser.add_argument('-handle', default='AGCGGGAGACCGGGGTCTCTGAGC', help='Genetic handle for domain insertion. This is important for defining the linker. Currently uses BsaI (4 base overhang), but this can be swapped for SapI (3 base overhang).')
+parser.add_argument('-dis', default=False, help='use the handle to insert domains at every position in POI')
 parser.add_argument('-matchSequences', action='store_const', const='match', default='nomatch', help='Find similar sequences between genes to avoid printing the same oligos multiple times. Default: No matching')
 parser.add_argument('-oligoLen', type=int, default=230, help='Synthesized oligo length')
 parser.add_argument('-fragmentLen', default=[], type=int, help='Maximum length of gene fragment')
 parser.add_argument('-overlap', default=3, type=int, help='Enter number of bases to extend each fragment for overlap. This will help with insertions close to fragment boundary')
 parser.add_argument('-DMS', action='store_const', const=True, default=False, help='Choose if you will run deep deep mutation scan')
+parser.add_argument('-custom_mutations', default=None, help='Path to file that includes custom mutations with the format position:AA')
 parser.add_argument('-usage', default='human', help='Default is "human". Or select "ecoli. Or change code"')
 parser.add_argument('-insertions', default=False, nargs='+', help='Enter a list of insertions (nucleotides) to make at every position. Note, you should enter multiples of 3 nucleotides to maintain reading frame')
 parser.add_argument('-deletions', default=False, nargs='+', help='Enter a list of deletions (number of nucleotides) to symmetrically delete (it will make deletions in multiples of 2x). Note you should enter multiples of 3 to maintain reading frame')
-#parser.add_argument('-include_substitutions', default=True, help='If you are running DMS but only want to insert or delete AA')
+parser.add_argument('-include_substitutions', default=False, help='If you are running DMS but only want to insert or delete AA')
 parser.add_argument('-barcode_start', default=0, help='To run DIMPLE multiple times, you will need to avoid using the same barcodes. This allows you to start at a different barcode.')
 parser.add_argument('-restriction_sequence', default='CGTCTC', help='Recommended using BsmBI - CGTCTC or BsaI - GGTCTC')
 parser.add_argument('-avoid_sequence', nargs='+', default=['CGTCTC', 'GGTCTC'], help='Avoid these sequences in the backbone - BsaI and BsmBI. For multiple sequnces use a space between inputs. Example -avoid_sequence CGTCTC GGTCTC')
@@ -77,9 +81,11 @@ elif args.usage == 'human':
         'GCT': 0.26, 'GCC': 0.4, 'GCA': 0.23, 'GCG': 0.11, 'GGT': 0.16, 'GGC': 0.34, 'GGA': 0.25, 'GGG': 0.25
     }
 else:
-    DIMPLE.usage = args.usage
+    with open(args.usage) as f:
+        usage = f.readlines()
+    DIMPLE.usage = ast.literal_eval(usage.strip('\n'))
 
-OLS = addgene(os.path.join(args.wDir,args.geneFile).strip())
+OLS = addgene(os.path.join(args.wDir, args.geneFile).strip())
 
 if args.matchSequences == 'match':
     align_genevariation(OLS)
@@ -87,7 +93,15 @@ if args.deletions:
     args.deletions = [int(x) for x in args.deletions]
 if not any([DIMPLE.dms, args.insertions, args.deletions]):
     raise ValueError("Didn't select any mutations to generate")
-generate_DMS_fragments(OLS, args.overlap, args.overlap, args.include_synonymous, DIMPLE.dms, args.insertions, args.deletions, args.wDir)
+
+if args.custom_mutations:
+    # load file with custom mutations
+    with open(args.custom_mutations) as f:
+        custom_mutations = f.readlines()
+    # parse custom mutations
+    custom_mutations = parse_custom_mutations(custom_mutations)
+
+generate_DMS_fragments(OLS, args.overlap, args.overlap, args.include_synonymous, custom_mutations, DIMPLE.dms, args.insertions, args.deletions, args.dis, args.wDir)
 
 post_qc(OLS)
 print_all(OLS, args.wDir)

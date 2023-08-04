@@ -11,7 +11,7 @@ import ast
 from io import StringIO
 
 def run():
-    if not any([app.delete.get(), app.insert.get(), app.include_substitutions.get()]):
+    if not any([app.delete.get(), app.insert.get(), app.include_substitutions.get(), app.dis.get()]):
         messagebox.showerror('Python Error', 'Error: You must select a mutation type.')
         raise ValueError('You must select a mutation type')
     if app.wDir is None:
@@ -139,8 +139,6 @@ class Application(tk.Frame):
         self.avoid_sequence = tk.Entry(self, width=50, textvariable=tk.StringVar(self, 'CGTCTC, GGTCTC'))
         self.avoid_sequence.pack()
 
-        self.handle = 'AGCGGGAGACCGGGGTCTCTGAGC'
-
         self.stop_codon = tk.Checkbutton(self, text="Include Stop Codons", variable=self.stop)
         self.stop_codon.pack()
         self.stop_codon.select()
@@ -198,6 +196,8 @@ class Application(tk.Frame):
 
         self.include_dis = tk.Checkbutton(self, text='Domain Insertion Scan', variable=self.dis)
         self.include_dis.pack()
+        self.handle = tk.Entry(self, width=50, textvariable=tk.StringVar(self, 'AGCGGGAGACCGGGGTCTCTGAGC'))
+        self.handle.pack()
 
         self.delete_check = tk.Checkbutton(self, text="List of Deletions", variable=self.delete)
         self.delete_check.pack()
@@ -211,7 +211,7 @@ class Application(tk.Frame):
         self.insertions = tk.Entry(self, width=50, textvariable=tk.StringVar(self, 'GGG,GGGGGG'))
         self.insertions.pack()
 
-        self.include_sub_check = tk.Checkbutton(self, text='Include Substitutions', variable=self.include_substitutions)
+        self.include_sub_check = tk.Checkbutton(self, text='Deep Mutational Scan', variable=self.include_substitutions)
         self.include_sub_check.pack()
         self.include_sub_check.deselect()
         self.double_it = tk.Checkbutton(self, text='Make Double Mutations', variable=self.make_double)

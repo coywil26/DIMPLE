@@ -155,8 +155,7 @@ class DIMPLE:
             "Trp",
             "Val",
             "Glu",
-            "Tyr",
-            "STOP",
+            "Tyr"
         ]
         if self.stop_codon:
             self.aminoacids.append("STOP")
@@ -1126,7 +1125,7 @@ def generate_DMS_fragments(
                     mut_positions = [x for i, x in tmp_mut_positions]
                     positions = [tmp_positions[i] for i, x in tmp_mut_positions]
                 else:
-                    mut_positions = range(offset, offset + frag[1] - frag[0], 3)
+                    mut_positions = range(offset, offset + frag[1] - frag[0] + 3, 3)
                 if dms:
                     mutations = {}
                     for i in mut_positions:

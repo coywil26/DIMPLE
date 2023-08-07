@@ -62,3 +62,11 @@ def parse_custom_mutations(mutation_text):
                     custom_mutations[int(set[0])] = custom_mutations[int(set[0])] + ',' + set[1]
                 else:
                     custom_mutations[int(set[0])] = set[1]
+
+
+def generate_barcode(length):
+    import random
+    barcode = ''
+    for i in range(length):
+        barcode += random.choice('ATCG')
+    return barcode

@@ -26,6 +26,7 @@ import warnings
 from difflib import SequenceMatcher
 from math import ceil
 from random import randrange
+from DIMPLE.utilities import generate_barcode
 
 import numpy as np
 from Bio import SeqIO, pairwise2
@@ -1453,7 +1454,7 @@ def generate_DMS_fragments(
                                     + DIMPLE.cutsite
                                     + "C"
                                     + tmpseq[0:4]
-                            )  # include recoginition site and the 4 base overhang
+                            )  # include recognition site and the 4 base overhang (hardcoded spacer for RE)
                             tmpfrag_2 = (
                                     tmpseq[-4:]
                                     + "G"
@@ -1475,6 +1476,7 @@ def generate_DMS_fragments(
                             if len(primerR) > 21:
                                 tmR = 0
                         group_oligos = []
+                        barcode = generate_barcode(DIMPLE.barcode_length)
                         for (
                                 sequence
                         ) in (

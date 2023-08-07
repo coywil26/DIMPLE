@@ -1107,27 +1107,28 @@ def generate_DMS_fragments(
                 # TODO: rather than fixed 4 bp, adjust offset change to allow for different cutsite sizes
                 offset = 4 + overlapL
                 ################# Create the mutations
-                # DMS
-                dms_sequences = []
+                # mutation fragments
+                mutation_fragments = []
                 dms_sequences_double = []
-                # list positions to mutate
-                if custom_mutations:
-                    # find custom mutations in the fragment range
-                    tmp_positions = list(custom_mutations.keys())
-                    tmp_tmp_positions = [
-                        x * 3 - 3 + gene.primerBuffer
-                        for x in list(custom_mutations.keys())
-                    ]
-                    tmp_mut_positions = [
-                        [i, x + offset - frag[0]]
-                        for i, x in enumerate(tmp_tmp_positions)
-                        if frag[0] <= x + 3 <= frag[1] - 3
-                    ]
-                    mut_positions = [x for i, x in tmp_mut_positions]
-                    positions = [tmp_positions[i] for i, x in tmp_mut_positions]
-                else:
-                    mut_positions = range(offset, offset + frag[1] - frag[0] + 3, 3)
+
                 if dms:
+                    # list positions to mutate
+                    if custom_mutations:
+                        # find custom mutations in the fragment range
+                        tmp_positions = list(custom_mutations.keys())
+                        tmp_tmp_positions = [
+                            x * 3 - 3 + gene.primerBuffer
+                            for x in list(custom_mutations.keys())
+                        ]
+                        tmp_mut_positions = [
+                            [i, x + offset - frag[0]]
+                            for i, x in enumerate(tmp_tmp_positions)
+                            if frag[0] <= x + 3 <= frag[1] - 3
+                        ]
+                        mut_positions = [x for i, x in tmp_mut_positions]
+                        positions = [tmp_positions[i] for i, x in tmp_mut_positions]
+                    else:
+                        mut_positions = range(offset, offset + frag[1] - frag[0] + 3, 3)
                     mutations = {}
                     for i in mut_positions:
                         wt_codon = tmpseq[i : i + 3].upper()
@@ -1199,7 +1200,7 @@ def generate_DMS_fragments(
                                     )
                                     + jk
                                     ] = mutation[0]
-                                dms_sequences.append(
+                                mutation_fragments.append(
                                     SeqRecord(
                                         xfrag,
                                         id=gene.geneid
@@ -1288,7 +1289,7 @@ def generate_DMS_fragments(
                                 # not sure how to solve this issue
                                 # mutation?
                                 # xfrag = tmpseq[0:i] + mutation + tmpseq[i + 3:]
-                            dms_sequences.append(
+                            mutation_fragments.append(
                                 SeqRecord(
                                     xfrag,
                                     id=gene.geneid
@@ -1351,7 +1352,7 @@ def generate_DMS_fragments(
                                     "Unwanted restriction site found within insertion fragment"
                                 )
                                 # xfrag = tmpseq[0:i-delete_n-3] + tmpseq[i+delete_n:] iteratively shift deletion to avoid cut sites? or mutate codons of near by aa?
-                            dms_sequences.append(
+                            mutation_fragments.append(
                                 SeqRecord(
                                     xfrag,
                                     id=gene.geneid
@@ -1400,7 +1401,7 @@ def generate_DMS_fragments(
                             # not sure how to solve this issue
                             # mutation?
                             # xfrag = tmpseq[0:i] + mutation + tmpseq[i + 3:]
-                        dms_sequences.append(
+                        mutation_fragments.append(
                             SeqRecord(
                                 xfrag,
                                 id=gene.geneid
@@ -1416,7 +1417,7 @@ def generate_DMS_fragments(
                             )
                         )
                 for idx_type, dms_sequence_list in enumerate(
-                        [dms_sequences, dms_sequences_double]
+                        [mutation_fragments, dms_sequences_double]
                 ):
                     if dms_sequence_list:  # are there any sequences to write?
                         tmF = 0
@@ -1458,7 +1459,7 @@ def generate_DMS_fragments(
                             tmpfrag_2 = (
                                     tmpseq[-4:]
                                     + "G"
-                                    + DIMPLE.cutsite.reverse_complement()
+                                    + DIMPLE.cutsite_secondary.reverse_complement()
                                     + barR.seq.reverse_complement()[
                                       0: difference - int(difference / 2)
                                       ]
@@ -1476,12 +1477,12 @@ def generate_DMS_fragments(
                             if len(primerR) > 21:
                                 tmR = 0
                         group_oligos = []
-                        barcode = generate_barcode(DIMPLE.barcode_length)
                         for (
                                 sequence
                         ) in (
                                 dms_sequence_list
                         ):  # add barcodes to the fragments to make the oligos
+                            barcode = generate_barcode(DIMPLE.barcode_length)
                             if insert or delete:
                                 difference = (
                                         DIMPLE.synth_len - len(sequence.seq[4:-4]) - 22
@@ -1493,10 +1494,20 @@ def generate_DMS_fragments(
                                         + sequence.seq[4:-4]
                                         + tmpfrag_2[:11]
                                         + tmpfrag_2[-(difference - offset):]
+                                        + DIMPLE.cutsite_secondary
+                                        + "GACGT"
+                                        + barcode
+                                        + DIMPLE.cutsite.reverse_complement()
                                 )
                             else:
                                 combined_sequence = (
-                                        tmpfrag_1 + sequence.seq[4:-4] + tmpfrag_2
+                                        tmpfrag_1 
+                                        + sequence.seq[4:-4]
+                                        + tmpfrag_2
+                                        + DIMPLE.cutsite_secondary
+                                        + "GACGT"
+                                        + barcode
+                                        + DIMPLE.cutsite.reverse_complement()
                                 )
                             if (
                                     primerF not in combined_sequence

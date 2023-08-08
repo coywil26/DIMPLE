@@ -1,0 +1,4 @@
+Positions:Mutations
+1-10:All
+11-20:A,C,D,E,F,G,H,I,K,L
+33:A,C

@@ -2,7 +2,7 @@
 # script for GUI
 
 from DIMPLE.DIMPLE import align_genevariation, print_all, post_qc, addgene, DIMPLE, generate_DMS_fragments
-from DIMPLE.utilities import parse_custom_mutations
+from DIMPLE.utilities import parse_custom_mutations, codon_usage
 from Bio.Seq import Seq
 import tkinter as tk
 from tkinter import filedialog
@@ -17,10 +17,10 @@ def run():
     if app.wDir is None:
         app.wDir = app.geneFile.rsplit('/', 1)[0]+'/'
 
-    #if any([x not in ['A', 'C', 'G', 'T', 'a', 'c', 'g', 't'] for x in app.handle.get()]):
-    #   raise ValueError('Genetic handle contains non nucleic bases')
+    if any([x not in ['A', 'C', 'G', 'T', 'a', 'c', 'g', 't'] for x in app.handle.get()]):
+       raise ValueError('Genetic handle contains non nucleic bases')
 
-    #DIMPLE.handle = app.handle.get()
+    DIMPLE.handle = app.handle.get()
     DIMPLE.synth_len = int(app.oligoLen.get())
     overlapL = int(app.overlap.get())
     overlapR = int(app.overlap.get())
@@ -31,35 +31,14 @@ def run():
     else:
         DIMPLE.maxfrag = int(app.oligoLen.get()) - 62 - overlapL - overlapR  # 62 allows for cutsites and barcodes
 
-    #adjust primer primerBuffer
+    # adjust primer primerBuffer for overlap
     DIMPLE.primerBuffer += overlapL
-    if app.codon_usage == 'ecoli':
-        DIMPLE.usage = {
-            'TTT': 0.58, 'TTC': 0.42, 'TTA': 0.14, 'TTG': 0.13, 'TAT': 0.59, 'TAC': 0.41, 'TAA': 0.61, 'TAG': 0.09,
-            'CTT': 0.12, 'CTC': 0.1, 'CTA': 0.04, 'CTG': 0.47, 'CAT': 0.57, 'CAC': 0.43, 'CAA': 0.34, 'CAG': 0.66,
-            'ATT': 0.49, 'ATC': 0.39, 'ATA': 0.11, 'ATG': 1, 'AAT': 0.49, 'AAC': 0.51, 'AAA': 0.74, 'AAG': 0.26,
-            'GTT': 0.28, 'GTC': 0.2, 'GTA': 0.17, 'GTG': 0.35, 'GAT': 0.63, 'GAC': 0.37, 'GAA': 0.68, 'GAG': 0.32,
-            'TCT': 0.17, 'TCC': 0.15, 'TCA': 0.14, 'TCG': 0.14, 'TGT': 0.46, 'TGC': 0.54, 'TGA': 0.3, 'TGG': 1,
-            'CCT': 0.18, 'CCC': 0.13, 'CCA': 0.2, 'CCG': 0.49, 'CGT': 0.36, 'CGC': 0.36, 'CGA': 0.07, 'CGG': 0.11,
-            'ACT': 0.19, 'ACC': 0.4, 'ACA': 0.17, 'ACG': 0.25, 'AGT': 0.16, 'AGC': 0.25, 'AGA': 0.07, 'AGG': 0.04,
-            'GCT': 0.18, 'GCC': 0.26, 'GCA': 0.23, 'GCG': 0.33, 'GGT': 0.35, 'GGC': 0.37, 'GGA': 0.13, 'GGG': 0.15
-        }  # E.coli codon usage table
-    elif app.codon_usage == 'human':
-        DIMPLE.usage = {
-            'TTT': 0.45, 'TTC': 0.55, 'TTA': 0.07, 'TTG': 0.13, 'TAT': 0.43, 'TAC': 0.57, 'TAA': 0.28, 'TAG': 0.2,
-            'CTT': 0.13, 'CTC': 0.2, 'CTA': 0.07, 'CTG': 0.41, 'CAT': 0.41, 'CAC': 0.59, 'CAA': 0.25, 'CAG': 0.75,
-            'ATT': 0.36, 'ATC': 0.48, 'ATA': 0.16, 'ATG': 1, 'AAT': 0.46, 'AAC': 0.54, 'AAA': 0.42, 'AAG': 0.58,
-            'GTT': 0.18, 'GTC': 0.24, 'GTA': 0.11, 'GTG': 0.47, 'GAT': 0.46, 'GAC': 0.54, 'GAA': 0.42, 'GAG': 0.58,
-            'TCT': 0.18, 'TCC': 0.22, 'TCA': 0.15, 'TCG': 0.06, 'TGT': 0.45, 'TGC': 0.55, 'TGA': 0.52, 'TGG': 1,
-            'CCT': 0.28, 'CCC': 0.33, 'CCA': 0.27, 'CCG': 0.11, 'CGT': 0.08, 'CGC': 0.19, 'CGA': 0.11, 'CGG': 0.21,
-            'ACT': 0.24, 'ACC': 0.36, 'ACA': 0.28, 'ACG': 0.12, 'AGT': 0.15, 'AGC': 0.24, 'AGA': 0.2, 'AGG': 0.2,
-            'GCT': 0.26, 'GCC': 0.4, 'GCA': 0.23, 'GCG': 0.11, 'GGT': 0.16, 'GGC': 0.34, 'GGA': 0.25, 'GGG': 0.25
-        }
-    else:
-        DIMPLE.usage = app.codon_usage
+    DIMPLE.usage = codon_usage(app.codon_usage)
     DIMPLE.barcodeF = DIMPLE.barcodeF[int(app.barcode_start.get()):]
     DIMPLE.barcodeR = DIMPLE.barcodeR[int(app.barcode_start.get()):]
     DIMPLE.cutsite = Seq(app.restriction_sequence.get())
+    DIMPLE.cutsite_secondary = Seq(app.secondary_restriction_sequence.get())
+    DIMPLE.barcode_length = int(app.barcode_length.get())
     DIMPLE.avoid_sequence = [Seq(x) for x in app.avoid_sequence.get().split(',')]
     DIMPLE.aminoacids = app.substitutions.get().split(',')
     DIMPLE.stop_codon = app.stop.get()
@@ -90,7 +69,7 @@ class Application(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
         self.master = master
-        self.pack()
+        self.grid()
         self.create_widgets()
 
     def create_widgets(self):
@@ -108,43 +87,51 @@ class Application(tk.Frame):
         self.custom_mutations = {}
 
         self.wDir_file = tk.Button(self, text='Working Directory', command=self.browse_wDir)
-        self.wDir_file.pack()
+        self.wDir_file.grid()
         self.wDir = None
 
         self.gene_file = tk.Button(self, text='Target Gene File', command=self.browse_gene)
-        self.gene_file.pack()
+        self.gene_file.grid()
         self.geneFile = None
 
-        tk.Label(self, text='Oligo Length').pack()
+        tk.Label(self, text='Oligo Length').grid()
         self.oligoLen = tk.Entry(self, textvariable=tk.StringVar(self, '230'))
-        self.oligoLen.pack()
+        self.oligoLen.grid()
 
-        tk.Label(self, text='Fragment Length').pack()
+        tk.Label(self, text='Fragment Length').grid()
         self.fragmentLen = tk.Entry(self, textvariable=tk.StringVar(self, 'auto'))
-        self.fragmentLen.pack()
+        self.fragmentLen.grid()
 
-        tk.Label(self, text='Fragment Overlap (This will change if deletions are selected)').pack()
+        tk.Label(self, text='Fragment Overlap (This will change if deletions are selected)').grid()
         self.overlap = tk.Entry(self, textvariable=tk.StringVar(self, '4'))
-        self.overlap.pack()
+        self.overlap.grid()
 
-        tk.Label(self, text='Barcode Start position (3000 total available)').pack()
+        tk.Label(self, text='Barcode Start position (3000 total available)').grid()
         self.barcode_start = tk.Entry(self, textvariable=tk.StringVar(self, '0'))
-        self.barcode_start.pack()
+        self.barcode_start.grid()
 
-        tk.Label(self, text='Type IIS restriction sequence').pack()
+        tk.Label(self, text='Type IIS restriction sequence').grid()
         self.restriction_sequence = tk.Entry(self, textvariable=tk.StringVar(self, 'CGTCTC'))
-        self.restriction_sequence.pack()
+        self.restriction_sequence.grid()
 
-        tk.Label(self, text='Sequences to avoid').pack()
+        tk.Label(self, text='Secondary Type IIS restriction sequence').grid()
+        self.secondary_restriction_sequence = tk.Entry(self, textvariable=tk.StringVar(self, 'GGTCTC'))
+        self.secondary_restriction_sequence.grid()
+
+        tk.Label(self, text='Barcode Length').grid()
+        self.barcode_length = tk.Entry(self, textvariable=tk.StringVar(self, '8'))
+        self.barcode_length.grid()
+
+        tk.Label(self, text='Sequences to avoid').grid()
         self.avoid_sequence = tk.Entry(self, width=50, textvariable=tk.StringVar(self, 'CGTCTC, GGTCTC'))
-        self.avoid_sequence.pack()
+        self.avoid_sequence.grid()
 
         self.stop_codon = tk.Checkbutton(self, text="Include Stop Codons", variable=self.stop)
-        self.stop_codon.pack()
+        self.stop_codon.grid()
         self.stop_codon.select()
 
         self.synonymous_check = tk.Checkbutton(self, text="Include Synonymous Mutations", variable=self.synonymous)
-        self.synonymous_check.pack()
+        self.synonymous_check.grid()
         self.synonymous_check.select()
 
         self.codon_usage = 'human'
@@ -165,7 +152,7 @@ class Application(tk.Frame):
             newWindow.title("Custom Codon Usage")
             newWindow.geometry("900x400")
             custom_codon = tk.Text(newWindow, width=750, height=400, wrap=tk.WORD)
-            custom_codon.pack()
+            custom_codon.grid()
             # if self.codon_usage is not a dictionary then set it to self.custom_codons
             if type(self.codon_usage) is not dict:
                 self.codon_usage = self.custom_codons
@@ -184,53 +171,55 @@ class Application(tk.Frame):
         def human_ON():
             self.codon_usage = 'human'
 
-        tk.Label(self, text='Codon Usage', font="helvetica 12 underline").pack(pady=5)
+        tk.Label(self, text='Codon Usage', font="helvetica 12 underline", fg='#00f').grid(pady=5)
         self.ecoli_check = tk.Radiobutton(self, text="E. coli", variable=self.usage, value=1, command=ecoli_ON)
-        self.ecoli_check.pack()
+        self.ecoli_check.grid()
         self.human_check = tk.Radiobutton(self, text="Human", variable=self.usage, value=0, command=human_ON)
-        self.human_check.pack()
+        self.human_check.grid()
         self.custom_codon_button = tk.Button(self, text="Custom Codon Usage", command=openNewWindow)
-        self.custom_codon_button.pack()
+        self.custom_codon_button.grid()
 
-        tk.Label(self, text='Select Mutations', font="helvetica 12 underline").pack(pady=5)
+        tk.Label(self, text='Select Mutations', font="helvetica 12 underline", fg='#00f').grid(pady=5)
 
         self.include_dis = tk.Checkbutton(self, text='Domain Insertion Scan', variable=self.dis)
-        self.include_dis.pack()
+        self.include_dis.grid()
         self.handle = tk.Entry(self, width=50, textvariable=tk.StringVar(self, 'AGCGGGAGACCGGGGTCTCTGAGC'))
-        self.handle.pack()
+        self.handle.grid()
 
         self.delete_check = tk.Checkbutton(self, text="List of Deletions", variable=self.delete)
-        self.delete_check.pack()
+        self.delete_check.grid()
         self.delete_check.deselect()
         self.deletions = tk.Entry(self, width=50, textvariable=tk.StringVar(self, '3,6'))
-        self.deletions.pack()
+        self.deletions.grid()
 
         self.insert_check = tk.Checkbutton(self, text="List of Insertions", variable=self.insert)
-        self.insert_check.pack()
+        self.insert_check.grid()
         self.insert_check.deselect()
         self.insertions = tk.Entry(self, width=50, textvariable=tk.StringVar(self, 'GGG,GGGGGG'))
-        self.insertions.pack()
+        self.insertions.grid()
 
         self.include_sub_check = tk.Checkbutton(self, text='Deep Mutational Scan', variable=self.include_substitutions)
-        self.include_sub_check.pack()
+        self.include_sub_check.grid()
         self.include_sub_check.deselect()
-        self.double_it = tk.Checkbutton(self, text='Make Double Mutations', variable=self.make_double)
 
         self.substitutions = tk.Entry(self, width=80, textvariable=tk.StringVar(self, "Cys,Asp,Ser,Gln,Met,Asn,Pro,Lys,Thr,Phe,Ala,Gly,Ile,Leu,His,Arg,Trp,Val,Glu,Tyr"))
-        self.substitutions.pack()
-
-        self.double_it.pack()
-        self.double_it.deselect()
+        self.substitutions.grid(padx=20)
 
         self.custom_mutations_button = tk.Button(self, text="Custom Mutations", command=self.custom_mutations_input)
-        self.custom_mutations_button.pack(pady=10)
+        self.custom_mutations_button.grid(pady=5)
+
+        self.double_it = tk.Checkbutton(self, text='Make Double Substitution Mutations', variable=self.make_double)
+        self.double_it.grid()
+        self.double_it.deselect()
 
         #self.matchSequences_check = tk.Checkbutton(self, text='Match Sequences', variable=self.matchSequences)
-        #self.matchSequences_check.pack()
+        #self.matchSequences_check.grid()
 
-        self.run = tk.Button(self, text='Run DIMPLE', command=run).pack(pady=10)
+        tk.Label(self, text='Run DIMPLE', font="helvetica 12 underline", fg='#f00').grid(column=1, row=2)
 
-        self.output = tk.Text(self, height=10, width=60).pack()
+        self.run = tk.Button(self, text='Run DIMPLE', command=run).grid(column=1, row=3)
+
+        self.output = tk.Text(self, height=20, width=60).grid(column=1, row=4, rowspan=20)
 
     def browse_wDir(self):
         self.wDir = filedialog.askdirectory(title="Select a File")
@@ -254,7 +243,7 @@ class Application(tk.Frame):
         newWindow.geometry('700x1000')
         # create a text box for custom mutations
         custom_mutations_window = tk.Text(newWindow, height=50, width=80)
-        custom_mutations_window.pack()
+        custom_mutations_window.grid()
         # example mutations
         if self.custom_mutations == {}:
             custom_mutations_window.insert(tk.END, "Positions:Mutations\n1-10:All\n11-20:A,C,D,E,F,G,H,I,K,L\n33:A,C")
@@ -275,6 +264,6 @@ class Application(tk.Frame):
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.geometry('700x1000')
+    root.geometry('1050x850')
     app = Application(master=root)
     app.mainloop()

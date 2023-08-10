@@ -486,11 +486,11 @@ def align_genevariation(OLS):
         )
 
 
-def find_geneprimer(genefrag, start, end):
+def find_geneprimer(genefrag, start, end, cutsite):
     # 3' end of primer is variable to adjust melting temperature
     # 5' end of primer is fixed, with restriction site added
     primer = (
-        genefrag[start:end].complement() + DIMPLE.cutsite[::-1] + "ATA"
+        genefrag[start:end].complement() + cutsite[::-1] + "ATA"
     )  # added ATA for cleavage close to end of DNA fragment
     # Check melting temperature
     # find complementary sequences
@@ -510,7 +510,7 @@ def find_geneprimer(genefrag, start, end):
         if tm2 < DIMPLE.gene_primerTm[0] or tm4 < DIMPLE.gene_primerTm[0]:
             start += -1
             primer = (
-                genefrag[start:end].complement() + DIMPLE.cutsite[::-1] + "ATA"
+                genefrag[start:end].complement() + cutsite[::-1] + "ATA"
             )  # cut site addition
             tm2 = mt.Tm_NN(primer[0 : end - start + comp], nn_table=mt.DNA_NN2)
             tm4 = mt.Tm_NN(primer[0 : end - start + comp], nn_table=mt.DNA_NN4)
@@ -520,7 +520,7 @@ def find_geneprimer(genefrag, start, end):
             break
         if tm2 > DIMPLE.gene_primerTm[1] and tm4 > DIMPLE.gene_primerTm[1]:
             start += 1
-            primer = genefrag[start:end].complement() + DIMPLE.cutsite[::-1] + "ATA"
+            primer = genefrag[start:end].complement() + cutsite[::-1] + "ATA"
             # tm = mt.Tm_NN(primer[0:e-s+comp],c_seq=genefrag[s:e+comp],nn_table=mt.DNA_NN2)
             tm2 = mt.Tm_NN(primer[0 : end - start + comp], nn_table=mt.DNA_NN2)
             tm4 = mt.Tm_NN(primer[0 : end - start + comp], nn_table=mt.DNA_NN4)
@@ -712,7 +712,7 @@ def switch_fragmentsize(gene, detectedsite, OLS):
     skip = False
     count = 0
     count2 = 0
-    print("Non specific Fragment:" + str(detectedsite))
+    print("Non-specific Fragment:" + str(detectedsite))
     if (
         len(gene.fragsize) * gene.maxfrag < len(gene.seq) - gene.primerBuffer * 2
     ):  # if the maxfrag has changed and it is impossible to split the gene into x number of fragments it should recalculate the number of fragments
@@ -958,9 +958,10 @@ def generate_DMS_fragments(
         compileR = []
         missingSites = []
         offset_list = []
-        # missingTable = [[1]*gene.aacount]*gene.aacount
         missingFragments = []
         all_grouped_oligos = []
+        last_overhang = gene.seq[gene.breaklist[-1][-1] - 2 : gene.breaklist[-1][-1] + 2]
+        # Loop through all fragments
         while idx < len(gene.breaklist):
             if idx == 0:
                 gene.oligos = []
@@ -981,12 +982,12 @@ def generate_DMS_fragments(
             if not any(
                 [tmp in finishedGenes for tmp in gene.linked]
             ):  # only run analysis for one of the linked genes
-                # Primers for gene amplification with addition of BsmBI site
+                # Primers for first round of gene and backbone amplification with addition of initial cut site
                 genefrag_R = gene.seq[
                     frag[0] - DIMPLE.primerBuffer : frag[0] + DIMPLE.primerBuffer
                 ]
                 reverse, tmR, sR = find_geneprimer(
-                    genefrag_R, 15, DIMPLE.primerBuffer + 1 - overlapL
+                    genefrag_R, 15, DIMPLE.primerBuffer + 1 - overlapL, DIMPLE.cutsite
                 )  # 15 is just a starting point
                 genefrag_F = gene.seq[
                     frag[1] - DIMPLE.primerBuffer : frag[1] + DIMPLE.primerBuffer
@@ -994,11 +995,9 @@ def generate_DMS_fragments(
                 forward, tmF, sF = find_geneprimer(
                     genefrag_F.reverse_complement(),
                     15,
-                    DIMPLE.primerBuffer + 1 - overlapR,
+                    DIMPLE.primerBuffer + 1 - overlapR, DIMPLE.cutsite_secondary
                 )
-                tmpr = check_nonspecific(
-                    reverse, gene.seq, frag[0] - len(gene.seq) + 10 - overlapL
-                )  # negative numbers look for reverse primers
+                tmpr = check_nonspecific(reverse, gene.seq, frag[0] - len(gene.seq) + 10 - overlapL)  # negative numbers look for reverse primers
                 tmpf = check_nonspecific(forward, gene.seq, frag[1] - 10 + overlapR)
                 if tmpf or tmpr:
                     # swap size with another fragment
@@ -1011,18 +1010,14 @@ def generate_DMS_fragments(
                     skip = switch_fragmentsize(gene, idx, OLS)
                     if skip:
                         warnings.warn(
-                            "Gene primer at the end of gene has non specific annealing. Try lengthening that primer"
+                            "Gene primer at the end of gene has non-specific annealing. Try lengthening that primer"
                         )
-                        # if end of gene, try to extend primer to make it more specific?
-
+                        # TODO: if end of gene, try to extend primer to make it more specific?
                         if tmpr:
                             reverse += gene.complement[genefrag_R[sR - 1]]
                         if tmpf:
                             idx -= 1
-                            forward += Seq(
-                                genefrag_F.reverse_complement()[sF - 1]
-                            ).reverse_complement()
-
+                            forward += Seq(genefrag_F.reverse_complement()[sF - 1]).reverse_complement()
                     else:
                         # Quality Control for overhangs from the same gene
                         # check_overhangs(gene, OLS)
@@ -1030,9 +1025,7 @@ def generate_DMS_fragments(
                         DIMPLE.barcodeR.extend(compileR)
                         compileF = []  # reset unused primers
                         compileR = []
-                        gene.genePrimer = (
-                            []
-                        )  # reset gene all primers due to nonspecific primer
+                        gene.genePrimer = ([])  # reset gene all primers due to nonspecific primer
                         gene.barPrimer = []
                         idx = 0
                         continue  # return to the beginning
@@ -1047,7 +1040,7 @@ def generate_DMS_fragments(
                     gene.barPrimer = []
                     idx = 0
                     continue  # return to the beginning
-                # Store
+                # Store primer for backbone amplification #1
                 gene.genePrimer.append(
                     SeqRecord(
                         reverse,
@@ -1061,10 +1054,11 @@ def generate_DMS_fragments(
                         + "C",
                     )
                 )
+                # for the barcoding version this will be amplification #2
                 gene.genePrimer.append(
                     SeqRecord(
                         forward,
-                        id=gene.geneid + "_geneP_Mut-" + str(idx + 1) + "_F",
+                        id=gene.geneid + "_geneP_Mut-" + str(idx + 1) + "_F2",
                         description="Frag"
                         + fragstart
                         + "-"
@@ -1460,6 +1454,14 @@ def generate_DMS_fragments(
                                     tmpseq[-4:]
                                     + "G"
                                     + DIMPLE.cutsite_secondary.reverse_complement()
+                                    + "CCCCC"
+                                    + DIMPLE.cutsite_secondary
+                                    + "G"
+                                    + last_overhang
+                                    + "barcode"
+                                    + last_overhang
+                                    + "G"
+                                    + DIMPLE.cutsite.reverse_complement()
                                     + barR.seq.reverse_complement()[
                                       0: difference - int(difference / 2)
                                       ]
@@ -1494,21 +1496,13 @@ def generate_DMS_fragments(
                                         + sequence.seq[4:-4]
                                         + tmpfrag_2[:11]
                                         + tmpfrag_2[-(difference - offset):]
-                                        + DIMPLE.cutsite_secondary
-                                        + "GACGT"
-                                        + barcode
-                                        + DIMPLE.cutsite.reverse_complement()
-                                )
+                                ).replace("barcode", barcode)
                             else:
                                 combined_sequence = (
-                                        tmpfrag_1 
+                                        tmpfrag_1
                                         + sequence.seq[4:-4]
                                         + tmpfrag_2
-                                        + DIMPLE.cutsite_secondary
-                                        + "GACGT"
-                                        + barcode
-                                        + DIMPLE.cutsite.reverse_complement()
-                                )
+                                ).replace("barcode", barcode)
                             if (
                                     primerF not in combined_sequence
                                     or primerR.reverse_complement() not in combined_sequence
@@ -1596,6 +1590,42 @@ def generate_DMS_fragments(
             if gene.doublefrag == 1:
                 all_grouped_oligos.append(grouped_oligos)
             idx += 1
+        # Generate primers for the end of gene amplification
+        frag = gene.breaklist[-1][-1] + 6
+        genefrag_R = gene.seq[frag - DIMPLE.primerBuffer: frag + DIMPLE.primerBuffer]
+        reverse, tmR, sR = find_geneprimer(
+            genefrag_R, 15, DIMPLE.primerBuffer + 1 - overlapL, DIMPLE.cutsite_secondary
+        )  # 15 is just a starting point
+        genefrag_F = gene.seq[frag - DIMPLE.primerBuffer: frag + DIMPLE.primerBuffer]
+        forward, tmF, sF = find_geneprimer(
+            genefrag_F.reverse_complement(), 15, DIMPLE.primerBuffer + 1 - overlapR, DIMPLE.cutsite
+        )
+        #tmpr = check_nonspecific(reverse, gene.seq,
+        #                         frag[0] - len(gene.seq) + 10 - overlapL)  # negative numbers look for reverse primers
+        #tmpf = check_nonspecific(forward, gene.seq, frag[1] - 10 + overlapR)
+        if tmpf or tmpr:
+            # swap size with another fragment
+            print("Non-specific binding detected in primer design")
+        # Store primer for backbone amplification #1
+        gene.genePrimer.append(
+            SeqRecord(
+                reverse,
+                id=gene.geneid + "_geneP" + "_R2",
+                description="End of gene Frag "
+                            + str(tmR)
+                            + "C",
+            )
+        )
+        # for the barcoding version this will be amplification #2
+        gene.genePrimer.append(
+            SeqRecord(
+                forward,
+                id=gene.geneid + "_geneP" + "_F",
+                description="End of gene Frag "
+                            + str(tmF)
+                            + "C",
+            )
+        )
         # Resolve Double Fragment
         if gene.doublefrag == 1:
             while len(all_grouped_oligos) > 1:

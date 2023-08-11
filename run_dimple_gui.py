@@ -110,11 +110,11 @@ class Application(tk.Frame):
         self.barcode_start = tk.Entry(self, textvariable=tk.StringVar(self, '0'))
         self.barcode_start.grid()
 
-        tk.Label(self, text='Type IIS restriction sequence').grid()
+        tk.Label(self, text='First Type IIS restriction sequence').grid()
         self.restriction_sequence = tk.Entry(self, textvariable=tk.StringVar(self, 'CGTCTC'))
         self.restriction_sequence.grid()
 
-        tk.Label(self, text='Secondary Type IIS restriction sequence').grid()
+        tk.Label(self, text='Second Type IIS restriction sequence').grid()
         self.secondary_restriction_sequence = tk.Entry(self, textvariable=tk.StringVar(self, 'GGTCTC'))
         self.secondary_restriction_sequence.grid()
 
@@ -264,6 +264,6 @@ class Application(tk.Frame):
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.geometry('1050x850')
+    root.geometry('1050x900')
     app = Application(master=root)
     app.mainloop()

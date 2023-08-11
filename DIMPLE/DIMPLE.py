@@ -1454,10 +1454,12 @@ def generate_DMS_fragments(
                                     tmpseq[-4:]
                                     + "G"
                                     + DIMPLE.cutsite_secondary.reverse_complement()
-                                    + "CCCCC"
+                                    + "C"
                                     + DIMPLE.cutsite_secondary
                                     + "G"
                                     + last_overhang
+                                    + last_overhang
+                                    + "CGGCCTCGCCG"
                                     + "barcode"
                                     + last_overhang
                                     + "G"
@@ -1600,6 +1602,8 @@ def generate_DMS_fragments(
         forward, tmF, sF = find_geneprimer(
             genefrag_F.reverse_complement(), 15, DIMPLE.primerBuffer + 1 - overlapR, DIMPLE.cutsite
         )
+        # Generate second round PCR primer
+        second_round_end_R = DIMPLE.cutsite + "G" + last_overhang + "CGGCCTCGCCG"
         #tmpr = check_nonspecific(reverse, gene.seq,
         #                         frag[0] - len(gene.seq) + 10 - overlapL)  # negative numbers look for reverse primers
         #tmpf = check_nonspecific(forward, gene.seq, frag[1] - 10 + overlapR)
@@ -1626,6 +1630,8 @@ def generate_DMS_fragments(
                             + "C",
             )
         )
+        gene.genePrimer.append(SeqRecord(second_round_end_R,
+                                         id=gene.geneid + "End of gene Frag round 2"))
         # Resolve Double Fragment
         if gene.doublefrag == 1:
             while len(all_grouped_oligos) > 1:

@@ -1161,6 +1161,11 @@ def generate_DMS_fragments(
                                 p = [xp / sum(p) for xp in p]  # Normalize to 1
                                 if not p:
                                     continue
+                                #TODO pick based on maximizing nucleotide changes
+                                # remove codons with only one change compared to wt_codon
+                                codons = [x for x in codons if sum([x[i] != wt_codon[i] for i in range(3)]) > 1]
+                                if not codons:
+                                    ##FIXME: this is a hack to avoid a crash
                                 mutation = np.random.choice(
                                     codons, 1, p
                                 )  # Pick one codon

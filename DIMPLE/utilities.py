@@ -62,6 +62,7 @@ def parse_custom_mutations(mutation_text):
                     custom_mutations[int(set[0])] = custom_mutations[int(set[0])] + ',' + set[1]
                 else:
                     custom_mutations[int(set[0])] = set[1]
+    return custom_mutations
 
 
 def codon_usage(usage):

@@ -1137,7 +1137,7 @@ def generate_DMS_fragments(
                         ]
                         if custom_mutations:
                             mutations_to_make = [
-                                seq3[x]
+                                seq3(x)
                                 for x in custom_mutations[
                                     positions[mut_positions.index(i)]
                                 ].split(",")

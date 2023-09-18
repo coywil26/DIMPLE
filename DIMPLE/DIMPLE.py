@@ -26,6 +26,7 @@ import warnings
 from difflib import SequenceMatcher
 from math import ceil
 from random import randrange
+from DIMPLE.utilities import findORF
 
 import numpy as np
 from Bio import SeqIO, pairwise2
@@ -178,77 +179,7 @@ class DIMPLE:
             start = []
             end = []
         if not start and not end:
-            # Scan through all strands and frames for open reading frames
-            min_protein_len = 100  # Support for finding gene position in vector
-            genestart = []
-            geneend = []
-            genestrand = []
-            print("Analyzing Gene:" + self.geneid)
-            for strand, nuc in [(+1, gene.seq), (-1, gene.seq.reverse_complement())]:
-                for frame in range(3):
-                    length = 3 * ((len(gene) - frame) // 3)  # Multiple of three
-                    translated = nuc[frame : frame + length].translate()
-                    for protein in translated.split("*"):
-                        if len(protein) >= min_protein_len:
-                            if len(protein.split("M", 1)) > 1:
-                                ORF = "M" + protein.split("M", 1)[1]
-                                genestart.append(translated.find(ORF) * 3 + frame + 1)
-                                geneend.append(genestart[-1] + len(ORF) * 3 - 1)
-                                genestrand.append(strand)
-                                print(
-                                    "ORF#%i %s...%s - length %i, strand %i, frame %i"
-                                    % (
-                                        len(genestart),
-                                        ORF[:25],
-                                        ORF[-10:],
-                                        len(ORF),
-                                        strand,
-                                        frame + 1,
-                                    )
-                                )
-            # Select Gene Frame
-            while True:
-                try:
-                    genenum = int(
-                        input("Which ORF are you targeting? (number):")
-                    )  # userinput
-                    if genestrand[genenum - 1] == -1:
-                        gene.seq = gene.seq.reverse_complement()
-                except:
-                    print("Please enter number")
-                    continue
-                else:
-                    break
-            start = genestart[genenum - 1] - 1  # subtract 1 to account for 0 indexing
-            end = geneend[genenum - 1]
-            print(gene.seq[start:end].translate()[:10])
-            quest = "g"  # holding place
-
-            while quest != "n" and quest != "y":
-                quest = input(
-                    "Is this the beginning of your gene?(position %i) (y/n):" % (start)
-                )
-            while quest == "n":
-                start = int(input("Enter the starting position your gene:"))
-                print(gene.seq[start:end].translate()[:10])
-                quest = input(
-                    "Is this the beginning of your gene?(position %i) (y/n):" % (start)
-                )
-            print(gene.seq[start:end].translate()[-10:])
-            quest = "g"
-            while quest != "n" and quest != "y":
-                quest = input("Is the size of your gene %ibp? (y/n):" % (end - start))
-            while quest == "n":
-                try:
-                    end = int(input("Enter nucleotide length of your gene:")) + start
-                    if (end - start) % 3 != 0:
-                        print("Length is not divisible by 3")
-                        continue
-                    print(gene.seq[start:end].translate()[-10:])
-                    quest = input("Is this end correct? (y/n):")
-                except:
-                    print("Please enter a number")
-                    quest = "n"
+            start, end = findORF(gene)
         self.aacount = int((end - start) / 3)
         self.start = start
         self.end = end
@@ -1137,7 +1068,7 @@ def generate_DMS_fragments(
                         ]
                         if custom_mutations:
                             mutations_to_make = [
-                                seq3[x]
+                                seq3(x)
                                 for x in custom_mutations[
                                     positions[mut_positions.index(i)]
                                 ].split(",")
@@ -1163,9 +1094,10 @@ def generate_DMS_fragments(
                                     continue
                                 #TODO pick based on maximizing nucleotide changes
                                 # remove codons with only one change compared to wt_codon
-                                codons = [x for x in codons if sum([x[i] != wt_codon[i] for i in range(3)]) > 1]
-                                if not codons:
-                                    ##FIXME: this is a hack to avoid a crash
+                                max_codons = [x for x in codons if sum([x[i] != wt_codon[i] for i in range(3)]) > 1]
+                                if max_codons:
+                                    #FIXME: this is a hack to avoid a crash
+                                    codons = max_codons
                                 mutation = np.random.choice(
                                     codons, 1, p
                                 )  # Pick one codon

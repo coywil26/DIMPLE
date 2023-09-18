@@ -66,6 +66,7 @@ def run():
     DIMPLE.dms = app.include_substitutions.get()
     DIMPLE.make_double = app.make_double.get()
     DIMPLE.handle = app.handle
+    DIMPLE.gene_primerTM = (app.melting_temp_low.get(), app.melting_temp_high.get())
     print(DIMPLE.usage)
 
     OLS = addgene(app.geneFile)
@@ -130,6 +131,12 @@ class Application(tk.Frame):
         tk.Label(self, text='Barcode Start position (3000 total available)').pack()
         self.barcode_start = tk.Entry(self, textvariable=tk.StringVar(self, '0'))
         self.barcode_start.pack()
+
+        tk.Label(self, text='Melting Temperature for Gene Primers').pack()
+        self.melting_temp_low = tk.Entry(self, textvariable=tk.StringVar(self, '57'))
+        self.melting_temp_low.pack()
+        self.melting_temp_high = tk.Entry(self, textvariable=tk.StringVar(self, '61'))
+        self.melting_temp_high.pack()
 
         tk.Label(self, text='Type IIS restriction sequence').pack()
         self.restriction_sequence = tk.Entry(self, textvariable=tk.StringVar(self, 'CGTCTC'))
@@ -230,7 +237,7 @@ class Application(tk.Frame):
 
         self.run = tk.Button(self, text='Run DIMPLE', command=run).pack(pady=10)
 
-        self.output = tk.Text(self, height=10, width=60).pack()
+        self.output = tk.Text(self, height=5, width=60).pack()
 
     def browse_wDir(self):
         self.wDir = filedialog.askdirectory(title="Select a File")

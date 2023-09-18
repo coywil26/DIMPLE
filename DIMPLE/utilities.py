@@ -62,6 +62,7 @@ def parse_custom_mutations(mutation_text):
                     custom_mutations[int(set[0])] = custom_mutations[int(set[0])] + ',' + set[1]
                 else:
                     custom_mutations[int(set[0])] = set[1]
+    return custom_mutations
 
 
 def codon_usage(usage):
@@ -91,3 +92,77 @@ def codon_usage(usage):
         usage_table = usage
     return usage_table
 
+
+def findORF(gene):
+    # Scan through all strands and frames for open reading frames
+    min_protein_len = 100  # Support for finding gene position in vector
+    genestart = []
+    geneend = []
+    genestrand = []
+    print("Analyzing Gene:" + self.geneid)
+    for strand, nuc in [(+1, gene.seq), (-1, gene.seq.reverse_complement())]:
+        for frame in range(3):
+            length = 3 * ((len(gene) - frame) // 3)  # Multiple of three
+            translated = nuc[frame: frame + length].translate()
+            for protein in translated.split("*"):
+                if len(protein) >= min_protein_len:
+                    if len(protein.split("M", 1)) > 1:
+                        ORF = "M" + protein.split("M", 1)[1]
+                        genestart.append(translated.find(ORF) * 3 + frame + 1)
+                        geneend.append(genestart[-1] + len(ORF) * 3 - 1)
+                        genestrand.append(strand)
+                        print(
+                            "ORF#%i %s...%s - length %i, strand %i, frame %i"
+                            % (
+                                len(genestart),
+                                ORF[:25],
+                                ORF[-10:],
+                                len(ORF),
+                                strand,
+                                frame + 1,
+                            )
+                        )
+    # Select Gene Frame
+    while True:
+        try:
+            genenum = int(
+                input("Which ORF are you targeting? (number):")
+            )  # userinput
+            if genestrand[genenum - 1] == -1:
+                gene.seq = gene.seq.reverse_complement()
+        except:
+            print("Please enter number")
+            continue
+        else:
+            break
+    start = genestart[genenum - 1] - 1  # subtract 1 to account for 0 indexing
+    end = geneend[genenum - 1]
+    print(gene.seq[start:end].translate()[:10])
+    quest = "g"  # holding place
+
+    while quest != "n" and quest != "y":
+        quest = input(
+            "Is this the beginning of your gene?(position %i) (y/n):" % (start)
+        )
+    while quest == "n":
+        start = int(input("Enter the starting position your gene:"))
+        print(gene.seq[start:end].translate()[:10])
+        quest = input(
+            "Is this the beginning of your gene?(position %i) (y/n):" % (start)
+        )
+    print(gene.seq[start:end].translate()[-10:])
+    quest = "g"
+    while quest != "n" and quest != "y":
+        quest = input("Is the size of your gene %ibp? (y/n):" % (end - start))
+    while quest == "n":
+        try:
+            end = int(input("Enter nucleotide length of your gene:")) + start
+            if (end - start) % 3 != 0:
+                print("Length is not divisible by 3")
+                continue
+            print(gene.seq[start:end].translate()[-10:])
+            quest = input("Is this end correct? (y/n):")
+        except:
+            print("Please enter a number")
+            quest = "n"
+    return start, end

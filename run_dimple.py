@@ -28,6 +28,7 @@ parser.add_argument('-restriction_sequence', default='CGTCTC', help='Recommended
 parser.add_argument('-avoid_sequence', nargs='+', default=['CGTCTC', 'GGTCTC'], help='Avoid these sequences in the backbone - BsaI and BsmBI. For multiple sequnces use a space between inputs. Example -avoid_sequence CGTCTC GGTCTC')
 parser.add_argument('-include_stop_codons', help='Include stop codons in the list of scanning mutations.', default=False, const=True, action='store_const')
 parser.add_argument('-include_synonymous', help='Include synonymous codons in the list of scanning mutations.', default=False, const=True, action='store_const')
+parser.add_argument('-make_double', help='Make each combination of mutations within a fragment', default=False, const=True, action='store_const')
 args = parser.parse_args()
 
 if args.wDir is None:
@@ -38,7 +39,7 @@ if args.wDir is None:
         args.wDir = ''
 
 #if any([x not in ['A', 'C', 'G', 'T', 'a', 'c', 'g', 't'] for x in args.handle]):
-#    raise ValueError('Genetic handle contains non nucleic bases')
+#    raise ValueError('Genetic handle contains non-nucleic bases')
 
 #DIMPLE.handle = args.handle
 DIMPLE.synth_len = args.oligoLen

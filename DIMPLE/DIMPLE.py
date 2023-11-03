@@ -187,15 +187,15 @@ class DIMPLE:
         if start - self.primerBuffer < 0:
             self.seq = (
                 gene.seq[start - self.primerBuffer :]
-                + gene.seq[: end + self.primerBuffer]
+                + gene.seq[: end + self.primerBuffer + 6]
             )
         elif end + self.primerBuffer > len(gene.seq):
             self.seq = (
                 gene.seq[start - self.primerBuffer :]
-                + gene.seq[: end + self.primerBuffer - len(gene.seq)]
+                + gene.seq[: end + self.primerBuffer - len(gene.seq) + 6]
             )
         else:
-            self.seq = gene.seq[start - self.primerBuffer : end + self.primerBuffer]
+            self.seq = gene.seq[start - self.primerBuffer : end + self.primerBuffer + 6]
         # Determine Fragment Size and store beginning and end of each fragment
         num = int(
             round(((end - start) / float(DIMPLE.maxfrag)) + 0.499999999)
@@ -516,8 +516,11 @@ def find_fragment_primer(fragment, stop):
 
 def check_nonspecific(primer, fragment, point):
     non = []
+    # fragment is the entire gene sequence plus the buffer sequence on each side
+    # point is the position of the primer in the fragment
     # Forward
     for i in range(len(fragment) - len(primer)):  # Scan each position
+        # first check if the primer binds at each position in the fragment
         match = [
             primer[j].lower() == fragment[i + j].lower() for j in range(len(primer))
         ]
@@ -528,6 +531,10 @@ def check_nonspecific(primer, fragment, point):
             ):
                 first = k
                 break
+        # if the primer binds to 80% of the first ... bases
+        # and more than 6 bases
+        # and the 3' matches
+        # then check melting temperature
         if (
             sum(match[first:]) > len(primer[first:]) * 0.8
             and sum(match[first:]) > 6
@@ -535,6 +542,7 @@ def check_nonspecific(primer, fragment, point):
             and point != i
         ):  # string compare - sum of matched nt is greater than 80%
             try:
+                # check the melting temperature of the primer
                 melt = mt.Tm_NN(
                     primer[first:],
                     c_seq=fragment[i + first : i + len(primer)].complement(),
@@ -542,9 +550,9 @@ def check_nonspecific(primer, fragment, point):
                     de_table=mt.DNA_DE1,
                     imm_table=mt.DNA_IMM1,
                 )
-                if melt > 20:
+                if melt > 25:
                     print("Found non-specific match at " + str(i + 1) + "bp:")
-                    print(" match:" + fragment[i : i + len(primer)])
+                    print("match: " + fragment[i: i + len(primer)])
                     print("primer:" + primer + " Tm:" + str(round(melt, 1)))
                 if melt > 35:
                     non.append(True)
@@ -625,7 +633,7 @@ def recalculate_num_fragments(gene):
         gene.breaklist = [
             [x + 3, x + gene.fragsize[idx]] for idx, x in enumerate(breaksites[:-1])
         ]  # insertion site to insertion site
-    gene.problemsites = set()
+    #gene.problemsites = set()
     gene.breaksites = breaksites
     gene.unique_Frag = [True] * len(gene.fragsize)
     return gene
@@ -901,9 +909,9 @@ def generate_DMS_fragments(
             fragstart = str(int((frag[0] - DIMPLE.primerBuffer) / 3) + 1)
             fragend = str(int((frag[1] - DIMPLE.primerBuffer) / 3))
             print(
-                "Creating Gene:"
+                "Creating Fragment:"
                 + gene.geneid
-                + " --- Fragment:"
+                + " --- Fragment #" + str(idx+1) + " AA:"
                 + fragstart
                 + "-"
                 + fragend
@@ -924,11 +932,11 @@ def generate_DMS_fragments(
                 forward, tmF, sF = find_geneprimer(
                     genefrag_F.reverse_complement(),
                     15,
-                    DIMPLE.primerBuffer + 1 - overlapR,
+                    DIMPLE.primerBuffer + 1 - overlapR
                 )
-                tmpr = check_nonspecific(
-                    reverse, gene.seq, frag[0] - len(gene.seq) + 10 - overlapL
-                )  # negative numbers look for reverse primers
+                # negative numbers look for reverse primers
+                # 10 bases is the buffer overhang on the primer
+                tmpr = check_nonspecific(reverse, gene.seq, frag[0] - len(gene.seq) + 10 - overlapL)
                 tmpf = check_nonspecific(forward, gene.seq, frag[1] - 10 + overlapR)
                 if tmpf or tmpr:
                     # swap size with another fragment
@@ -1096,13 +1104,15 @@ def generate_DMS_fragments(
                                 # remove codons with only one change compared to wt_codon
                                 max_codons = [x for x in codons if sum([x[i] != wt_codon[i] for i in range(3)]) > 1]
                                 if max_codons:
-                                    #FIXME: this is a hack to avoid a crash
+                                    #FIXME: this is a hack to avoid a crash. fix could include a synonymous mutation in neighbor
                                     codons = max_codons
+                                else:
+                                    print('WARNING: no codons with more than one base change')
                                 mutation = np.random.choice(
                                     codons, 1, p
                                 )  # Pick one codon
                                 xfrag = (
-                                    tmpseq[0:i] + mutation[0] + tmpseq[i + 3 :]
+                                    tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]
                                 )  # Add mutation to fragment
                                 # Check each cassette for more than 2 BsmBI and 2 BsaI sites
                                 while any(

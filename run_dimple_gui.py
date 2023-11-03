@@ -1,7 +1,7 @@
 # RUN DIMPLE
 # script for GUI
 
-from DIMPLE.DIMPLE import align_genevariation, print_all, post_qc, addgene, DIMPLE, generate_DMS_fragments
+from DIMPLE.DIMPLE import align_genevariation, print_all, post_qc, addgene, DIMPLE, generate_DMS_fragments, switch_fragmentsize
 from DIMPLE.utilities import parse_custom_mutations
 from Bio.Seq import Seq
 import tkinter as tk
@@ -66,10 +66,17 @@ def run():
     DIMPLE.dms = app.include_substitutions.get()
     DIMPLE.make_double = app.make_double.get()
     DIMPLE.handle = app.handle
+    DIMPLE.doublefrag = app.doublefrag
     DIMPLE.gene_primerTM = (app.melting_temp_low.get(), app.melting_temp_high.get())
-    print(DIMPLE.usage)
 
     OLS = addgene(app.geneFile)
+    if app.avoid_breaksites.get():
+        OLS[0].problemsites = set(int(x) for x in app.custom_mutations.keys())
+        # add extras
+        if app.avoid_others_list.get() != '':
+            OLS[0].problemsites.update([int(x) for x in app.avoid_others_list.get().split(',')])
+        for i in range(len(OLS[0].breaksites)):
+            switch_fragmentsize(OLS[0], 1, OLS)
 
     if app.matchSequences.get() == 'match':
         align_genevariation(OLS)
@@ -107,6 +114,8 @@ class Application(tk.Frame):
         self.dis = tk.IntVar()
         self.make_double = tk.IntVar()
         self.custom_mutations = {}
+        self.doublefrag = tk.IntVar()
+        self.avoid_breaksites = tk.IntVar()
 
         self.wDir_file = tk.Button(self, text='Working Directory', command=self.browse_wDir)
         self.wDir_file.pack()
@@ -117,7 +126,7 @@ class Application(tk.Frame):
         self.geneFile = None
 
         tk.Label(self, text='Oligo Length').pack()
-        self.oligoLen = tk.Entry(self, textvariable=tk.StringVar(self, '230'))
+        self.oligoLen = tk.Entry(self, textvariable=tk.StringVar(self, '250'))
         self.oligoLen.pack()
 
         tk.Label(self, text='Fragment Length').pack()
@@ -133,9 +142,9 @@ class Application(tk.Frame):
         self.barcode_start.pack()
 
         tk.Label(self, text='Melting Temperature for Gene Primers').pack()
-        self.melting_temp_low = tk.Entry(self, textvariable=tk.StringVar(self, '57'))
+        self.melting_temp_low = tk.Entry(self, textvariable=tk.StringVar(self, '58'))
         self.melting_temp_low.pack()
-        self.melting_temp_high = tk.Entry(self, textvariable=tk.StringVar(self, '61'))
+        self.melting_temp_high = tk.Entry(self, textvariable=tk.StringVar(self, '62'))
         self.melting_temp_high.pack()
 
         tk.Label(self, text='Type IIS restriction sequence').pack()
@@ -153,6 +162,9 @@ class Application(tk.Frame):
         self.synonymous_check = tk.Checkbutton(self, text="Include Synonymous Mutations", variable=self.synonymous)
         self.synonymous_check.pack()
         self.synonymous_check.select()
+
+        self.doublefrag_check = tk.Checkbutton(self, text="Double Fragments per Oligo", variable=self.doublefrag)
+        self.doublefrag_check.pack()
 
         self.codon_usage = 'human'
 
@@ -231,6 +243,13 @@ class Application(tk.Frame):
 
         self.custom_mutations_button = tk.Button(self, text="Custom Mutations", command=self.custom_mutations_input)
         self.custom_mutations_button.pack(pady=10)
+
+        self.avoid_custom = tk.Checkbutton(self, text='Avoid breaksites in Custom Mutations', variable=self.avoid_breaksites)
+        self.avoid_custom.pack()
+
+        tk.Label(self, text='Comma separated AA positions:').pack()
+        self.avoid_others_list = tk.Entry(self, width=60, textvariable=tk.StringVar(self, ""))
+        self.avoid_others_list.pack()
 
         #self.matchSequences_check = tk.Checkbutton(self, text='Match Sequences', variable=self.matchSequences)
         #self.matchSequences_check.pack()

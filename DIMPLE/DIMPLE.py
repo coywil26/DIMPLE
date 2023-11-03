@@ -256,15 +256,15 @@ class DIMPLE:
         if start - self.primerBuffer < 0:
             self.seq = (
                 gene.seq[start - self.primerBuffer :]
-                + gene.seq[: end + self.primerBuffer + 3]
+                + gene.seq[: end + self.primerBuffer + 6]
             )
         elif end + self.primerBuffer > len(gene.seq):
             self.seq = (
                 gene.seq[start - self.primerBuffer :]
-                + gene.seq[: end + self.primerBuffer - len(gene.seq) + 3]
+                + gene.seq[: end + self.primerBuffer - len(gene.seq) + 6]
             )
         else:
-            self.seq = gene.seq[start - self.primerBuffer : end + self.primerBuffer + 3]
+            self.seq = gene.seq[start - self.primerBuffer : end + self.primerBuffer + 6]
         # Determine Fragment Size and store beginning and end of each fragment
         num = int(
             round(((end - start) / float(DIMPLE.maxfrag)) + 0.499999999)

@@ -28,6 +28,7 @@ parser.add_argument('-restriction_sequence', default='CGTCTC', help='Recommended
 parser.add_argument('-avoid_sequence', nargs='+', default=['CGTCTC', 'GGTCTC'], help='Avoid these sequences in the backbone - BsaI and BsmBI. For multiple sequnces use a space between inputs. Example -avoid_sequence CGTCTC GGTCTC')
 parser.add_argument('-include_stop_codons', help='Include stop codons in the list of scanning mutations.', default=False, const=True, action='store_const')
 parser.add_argument('-include_synonymous', help='Include synonymous codons in the list of scanning mutations.', default=False, const=True, action='store_const')
+parser.add_argument('-make_double', help='Make double mutations.', default=False, const=True, action='store_const')
 args = parser.parse_args()
 
 if args.wDir is None:
@@ -58,6 +59,8 @@ DIMPLE.barcodeR = DIMPLE.barcodeR[int(args.barcode_start):]
 DIMPLE.cutsite = Seq(args.restriction_sequence)
 DIMPLE.avoid_sequence = [Seq(x) for x in args.avoid_sequence]
 DIMPLE.stop_codon = args.include_stop_codons
+DIMPLE.make_double = args.make_double
+
 if args.usage == 'ecoli':
     DIMPLE.usage = {
         'TTT': 0.58, 'TTC': 0.42, 'TTA': 0.14, 'TTG': 0.13, 'TAT': 0.59, 'TAC': 0.41, 'TAA': 0.61, 'TAG': 0.09,
@@ -100,6 +103,8 @@ if args.custom_mutations:
         custom_mutations = f.readlines()
     # parse custom mutations
     custom_mutations = parse_custom_mutations(custom_mutations)
+else:
+    custom_mutations = None
 
 generate_DMS_fragments(OLS, args.overlap, args.overlap, args.include_synonymous, custom_mutations, DIMPLE.dms, args.insertions, args.deletions, args.dis, args.wDir)
 

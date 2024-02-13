@@ -919,7 +919,7 @@ def generate_DMS_fragments(
         insert_list = []
         if insert:
             insert_list.append(insert)
-        if dms:
+        if dis:
             insert_list.append(DIMPLE.handle)
         if insert or dms:
             DIMPLE.maxfrag = (

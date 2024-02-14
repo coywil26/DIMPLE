@@ -917,7 +917,7 @@ def generate_DMS_fragments(
     if insert or delete or dis:
         insert_list = []
         if insert:
-            insert_list.append(insert)
+            insert_list.extend(insert)
         if dis:
             insert_list.append(DIMPLE.handle)
         if insert or dis:

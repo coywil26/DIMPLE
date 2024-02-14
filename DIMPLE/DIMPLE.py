@@ -921,7 +921,7 @@ def generate_DMS_fragments(
             insert_list.append(insert)
         if dis:
             insert_list.append(DIMPLE.handle)
-        if insert or dms:
+        if insert or dis:
             DIMPLE.maxfrag = (
                 DIMPLE.synth_len
                 - 64

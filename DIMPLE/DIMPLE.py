@@ -175,7 +175,7 @@ class DIMPLE:
                 + str(DIMPLE.avoid_sequence)
             )  # change codon
         if start and end and (end - start) % 3 != 0:
-            print("Gene length is not divisible by 3")
+            print("Gene length is not divisible by 3. Reseting start and end.")
             start = []
             end = []
         if not start and not end:
@@ -186,7 +186,7 @@ class DIMPLE:
         # record sequence with extra bp to account for primer. for plasmids (circular) we can rearrange linear sequence)
         if start - self.primerBuffer < 0:
             self.seq = (
-                gene.seq[start - self.primerBuffer :]
+                gene.seq[start - self.primerBuffer:]
                 + gene.seq[: end + self.primerBuffer + 6]
             )
         elif end + self.primerBuffer > len(gene.seq):
@@ -857,7 +857,7 @@ def generate_DMS_fragments(
     if insert or delete or dis:
         insert_list = []
         if insert:
-            insert_list.append(insert)
+            insert_list.extend(insert)
         if dms:
             insert_list.append(DIMPLE.handle)
         if insert or dms:

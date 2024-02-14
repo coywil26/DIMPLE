@@ -99,7 +99,7 @@ def findORF(gene):
     genestart = []
     geneend = []
     genestrand = []
-    print("Analyzing Gene:" + self.geneid)
+    print("Analyzing Gene:" + gene.name)
     for strand, nuc in [(+1, gene.seq), (-1, gene.seq.reverse_complement())]:
         for frame in range(3):
             length = 3 * ((len(gene) - frame) // 3)  # Multiple of three

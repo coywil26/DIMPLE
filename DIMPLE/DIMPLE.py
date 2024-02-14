@@ -162,16 +162,15 @@ class DIMPLE:
         self.complement = {"A": "T", "C": "G", "G": "C", "T": "A"}
 
         # First check for unwanted cutsites (BsaI sites and BsmBI sites)
-        if any(
-            [
+        match_sites = [
                 gene.seq.upper().count(cut)
                 + gene.seq.upper().count(cut.reverse_complement())
                 for cut in DIMPLE.avoid_sequence
             ]
-        ):
+        if any(match_sites):
             raise ValueError(
                 "Unwanted Restriction cut sites found. Please input plasmids with these removed."
-                + str(DIMPLE.avoid_sequence)
+                + str([DIMPLE.avoid_sequence[i] for i, x in enumerate(match_sites) if bool(x)])
             )  # change codon
         if start and end and (end - start) % 3 != 0:
             print("Gene length is not divisible by 3")

@@ -35,8 +35,6 @@ from Bio.SeqRecord import SeqRecord
 from Bio.SeqUtils import MeltingTemp as mt
 from Bio.SeqUtils import seq3
 
-import pdb
-
 def addgene(genefile, start=None, end=None):
     """Generate a list of DIMPLE classes from a fasta file containing genes."""
     if start is None:

@@ -16,6 +16,7 @@ Use align_genevariation()
 
 """
 
+
 # TODO: Check that this works with different length RE sites!!!!
 
 # TODO: Handle alternative type II REs, with overhangs of different lengths (e.g. BspQI, etc)
@@ -34,6 +35,7 @@ from Bio.SeqRecord import SeqRecord
 from Bio.SeqUtils import MeltingTemp as mt
 from Bio.SeqUtils import seq3
 
+import pdb
 
 def addgene(genefile, start=None, end=None):
     """Generate a list of DIMPLE classes from a fasta file containing genes."""
@@ -1167,7 +1169,121 @@ def generate_DMS_fragments(
                                     tmpseq[0:i] + mutation[0] + tmpseq[i + 3 :]
                                 )  # Add mutation to fragment
                                 # Check each cassette for more than 2 BsmBI and 2 BsaI sites
-                                while any(
+                                matched_sequences = [
+                                        (
+                                            xfrag.upper().count(x)
+                                            + xfrag.upper().count(
+                                                x.reverse_complement()
+                                            )
+                                        )
+                                        > 0
+                                        for x in DIMPLE.avoid_sequence
+                                    ]
+                                
+                                if any(matched_sequences):
+                                    warnings.warn(
+                                        "Unwanted restriction site found for mutagenic oligo"
+                                    )  # change codon
+
+                                    # First, try changing mutation codon
+                                    if len(gene.SynonymousCodons[jk]) > 1:
+                                        for codon in gene.SynonymousCodons[jk]:
+                                            test_frag = tmpseq[0:i] + codon + tmpseq[i + 3 :]
+                                            if not any (
+                                                [
+                                                    (
+                                                        test_frag.upper().count(x)
+                                                        + test_frag.upper().count(
+                                                        x.reverse_complement()
+                                                            )
+                                                    ) > 0 for x in DIMPLE.avoid_sequence
+                                                ]
+                                            ):
+                                                xfrag = test_frag
+                                                print("Changed codon to avoid restriction site")
+                                                break
+
+                                    # In case this does not work, or if there is only a single codon,
+                                    # we must change a bordering codon as well.
+                                    warnings.warn(
+                                        "Changing neighboring codon to avoid restriction site"
+                                    )
+
+                                    # The sequence will be introduced at either the left or right border of the mutation
+                                    # codon. We first identify where, for all sequences to avoid.
+
+                                    match_locations_fwd = [xfrag.upper().find(x) for x in DIMPLE.avoid_sequence]
+                                    match_locations_rev = [xfrag.upper().find(x.reverse_complement()) for x in DIMPLE.avoid_sequence]
+                                    match_locations = []
+                                    for match in match_locations_fwd:
+                                        if match != -1:
+                                            match_locations.append(match)
+                                    for match in match_locations_rev:
+                                        if match != -1:
+                                            match_locations.append(match)
+                                    
+                                    # For any matches, we change the codon to the left or right of the mutation codon
+                                    # based on the location.
+                                    for match in match_locations:
+                                        if match >= i:
+                                            # Change the codon to the right
+                                            wt_codon_r = tmpseq[i + 3: i + 6].upper()                                            
+                                            wt_r = [
+                                                name
+                                                for name, codon in gene.SynonymousCodons.items()
+                                                if wt_codon_r in codon
+                                            ]
+                                            # Hopefully there is a synonymous codon to try.
+                                            if len(wt_r) == 1:
+                                                if len(gene.SynonymousCodons[wt_r[0]]) > 1:
+                                                    for codon_pair in itertools.product(
+                                                        gene.SynonymousCodons[jk],
+                                                        gene.SynonymousCodons[wt_r[0]]
+                                                    ):
+                                                        test_frag = tmpseq[0 : i] + codon_pair[0] + codon_pair[1] + tmpseq[i + 6 :]
+                                                        if not any(
+                                                            [
+                                                                (
+                                                                    test_frag.upper().count(x)
+                                                                    + test_frag.upper().count(
+                                                                        x.reverse_complement()
+                                                                    )
+                                                                ) > 0 for x in DIMPLE.avoid_sequence
+                                                            ]
+                                                        ):
+                                                            print("Changed codon on right to avoid restriction site")                                                            
+                                                            xfrag = test_frag
+                                                            break
+                                        if match < i:
+                                            # Change the codon to the left
+                                            wt_codon_l = tmpseq[i-3:i].upper()
+                                            wt_l = [
+                                                name
+                                                for name, codon in gene.SynonymousCodons.items()
+                                                if wt_codon_l in codon
+                                            ]
+                                            if len(wt_l) == 1:
+                                                if len(gene.SynonymousCodons[wt_l[0]]) > 1:
+                                                    for codon_pair in itertools.product(
+                                                        gene.SynonymousCodons[wt_l[0]],
+                                                        gene.SynonymousCodons[jk]
+                                                    ):
+                                                        test_frag = tmpseq[0 : i - 3] + codon_pair[0] + codon_pair[1] + tmpseq[i + 3 :]
+                                                        if not any(
+                                                            [
+                                                                (
+                                                                    test_frag.upper().count(x)
+                                                                    + test_frag.upper().count(
+                                                                        x.reverse_complement()
+                                                                    )
+                                                                ) > 0 for x in DIMPLE.avoid_sequence
+                                                            ]
+                                                        ):
+                                                            xfrag = test_frag
+                                                            print("Changed codon on left to avoid restriction site")
+                                                            break
+                                # Final check
+                                if any(
                                     [
                                         (
                                             xfrag.upper().count(x)
@@ -1175,52 +1291,48 @@ def generate_DMS_fragments(
                                                 x.reverse_complement()
                                             )
                                         )
-                                        > 2
+                                        > 0
                                         for x in DIMPLE.avoid_sequence
                                     ]
                                 ):
-                                    warnings.warn(
-                                        "Found avoided sequences"
-                                    )  # change codon
-                                    mutation = np.random.choice(
-                                        gene.SynonymousCodons[jk], 1, p
-                                    )  # Pick one codon
-                                    xfrag = tmpseq[0:i] + mutation[0] + tmpseq[i + 3 :]
-                                mutations[
-                                    ">"
-                                    + wt[0]
-                                    + str(
-                                        int(
-                                            (frag[0] + i + 3 - offset - DIMPLE.primerBuffer)
-                                            / 3
-                                        )
-                                    )
-                                    + jk
-                                    ] = mutation[0]
-                                dms_sequences.append(
-                                    SeqRecord(
-                                        xfrag,
-                                        id=gene.geneid
-                                        + "_DMS-"
-                                        + str(idx + 1)
-                                        + "_"
+                                    warnings.warn("Unable to avoid restriction site. Skipping mutation: " +
+                                                    wt[0] + str(int((frag[0] + i + 3 - offset - DIMPLE.primerBuffer) / 3)) + jk)
+                                else:
+                                    mutations[
+                                        ">"
                                         + wt[0]
                                         + str(
                                             int(
-                                                (
-                                                    frag[0]
-                                                    + i
-                                                    + 3
-                                                    - offset
-                                                    - DIMPLE.primerBuffer
-                                                )
+                                                (frag[0] + i + 3 - offset - DIMPLE.primerBuffer)
                                                 / 3
                                             )
                                         )
-                                        + jk,
-                                        description="Frag " + fragstart + "-" + fragend,
+                                        + jk
+                                        ] = mutation[0]
+                                    dms_sequences.append(
+                                        SeqRecord(
+                                            xfrag,
+                                            id=gene.geneid
+                                            + "_DMS-"
+                                            + str(idx + 1)
+                                            + "_"
+                                            + wt[0]
+                                            + str(
+                                                int(
+                                                    (
+                                                        frag[0]
+                                                        + i
+                                                        + 3
+                                                        - offset
+                                                        - DIMPLE.primerBuffer
+                                                    )
+                                                    / 3
+                                                )
+                                            )
+                                            + jk,
+                                            description="Frag " + fragstart + "-" + fragend,
+                                        )
                                     )
-                                )
                         # if double mutations are selected then make every possible double mutation
                         if DIMPLE.make_double:
                             # select every permutation of mut_positions order doesn't matter
@@ -1276,40 +1388,125 @@ def generate_DMS_fragments(
                                         xfrag.upper().count(x)
                                         + xfrag.upper().count(x.reverse_complement())
                                     )
-                                    > 2
+                                    > 0
                                     for x in DIMPLE.avoid_sequence
                                 ]
                             ):
-                                raise ValueError(
-                                    "Unwanted restriction site found within insertion fragment"
+                                warnings.warn(
+                                    "Unwanted restriction site found for insertion oligo"
                                 )
-                                # not sure how to solve this issue
-                                # mutation?
-                                # xfrag = tmpseq[0:i] + mutation + tmpseq[i + 3:]
-                            dms_sequences.append(
-                                SeqRecord(
-                                    xfrag,
-                                    id=gene.geneid
-                                    + "_insert-"
-                                    + str(idx + 1)
-                                    + "_"
-                                    + insert_n
-                                    + "-"
-                                    + str(
-                                        int(
-                                            (
-                                                frag[0]
-                                                + i
-                                                + 3
-                                                - offset
-                                                - DIMPLE.primerBuffer
-                                            )
-                                            / 3
+                                # Attempt to fix by changing bordering codons to synonymous.
+
+                                match_locations_fwd = [xfrag.upper().find(x) for x in DIMPLE.avoid_sequence]
+                                match_locations_rev = [xfrag.upper().find(x.reverse_complement()) for x in DIMPLE.avoid_sequence]
+                                match_locations = []
+                                for match in match_locations_fwd:
+                                    if match != -1:
+                                        match_locations.append(match)
+                                for match in match_locations_rev:
+                                    if match != -1:
+                                        match_locations.append(match)
+                                
+                                # For any matches, we change the codon to the left or right of the mutation codon
+                                # based on the location.
+                                if match >= i:
+                                    # Change the codon to the right
+                                    wt_codon_r = tmpseq[i + 3: i + 6].upper()
+                                    wt_r = [
+                                        name
+                                        for name, codon in gene.SynonymousCodons.items()
+                                        if wt_codon_r in codon
+                                    ]
+                                    # Hopefully there is a synonymous codon to try.
+                                    if len(wt_r) == 1:
+                                        if len(gene.SynonymousCodons[wt_r[0]]) > 1:
+                                            for codon_pair in itertools.product(
+                                                gene.SynonymousCodons[jk],
+                                                gene.SynonymousCodons[wt_r[0]]
+                                            ):
+                                                test_frag = tmpseq[0 : i] + codon_pair[0] + codon_pair[1] + tmpseq[i + 6 :]
+                                                if not any(
+                                                    [
+                                                        (
+                                                            test_frag.upper().count(x)
+                                                            + test_frag.upper().count(
+                                                                x.reverse_complement()
+                                                            )
+                                                        ) > 0 for x in DIMPLE.avoid_sequence
+                                                    ]
+                                                ):
+                                                    print("Changed codon on right to avoid restriction site")                                                            
+                                                    xfrag = test_frag
+                                                    break
+                                if match < i:
+                                    # Change the codon to the left
+                                    wt_codon_l = tmpseq[i - 3 : i].upper()
+                                    wt_l = [
+                                        name
+                                        for name, codon in gene.SynonymousCodons.items()
+                                        if wt_codon_l in codon
+                                    ]
+                                    if len(wt_l) == 1:
+                                        if len(gene.SynonymousCodons[wt_l[0]]) > 1:
+                                            for codon_pair in itertools.product(
+                                                gene.SynonymousCodons[wt_l[0]],
+                                                gene.SynonymousCodons[jk]
+                                            ):
+                                                test_frag = tmpseq[0 : i - 3] + codon_pair[0] + codon_pair[1] + tmpseq[i + 3 :]
+                                                if not any(
+                                                    [
+                                                        (
+                                                            test_frag.upper().count(x)
+                                                            + test_frag.upper().count(
+                                                                x.reverse_complement()
+                                                            )
+                                                        ) > 0 for x in DIMPLE.avoid_sequence
+                                                    ]
+                                                ):
+                                                    xfrag = test_frag
+                                                    print("Changed codon on left to avoid restriction site")
+                                                    break
+
+                            # Final check
+                            if any(
+                                [
+                                    (
+                                        xfrag.upper().count(x)
+                                        + xfrag.upper().count(
+                                            x.reverse_complement()
                                         )
-                                    ),
-                                    description="Frag " + fragstart + "-" + fragend,
+                                    )
+                                    > 0
+                                    for x in DIMPLE.avoid_sequence
+                                ]
+                            ):
+                                warnings.warn("Unable to avoid restriction site. Skipping mutation: " +
+                                                wt[0] + str(int((frag[0] + i + 3 - offset - DIMPLE.primerBuffer) / 3)) + jk)
+                            else:
+                                dms_sequences.append(
+                                    SeqRecord(
+                                        xfrag,
+                                        id=gene.geneid
+                                        + "_insert-"
+                                        + str(idx + 1)
+                                        + "_"
+                                        + insert_n
+                                        + "-"
+                                        + str(
+                                            int(
+                                                (
+                                                    frag[0]
+                                                    + i
+                                                    + 3
+                                                    - offset
+                                                    - DIMPLE.primerBuffer
+                                                )
+                                                / 3
+                                            )
+                                        ),
+                                        description="Frag " + fragstart + "-" + fragend,
+                                    )
                                 )
-                            )
                 if delete:
                     # deletion
                     # TODO: failing here, for some reason. i becomes too large.
@@ -1341,38 +1538,92 @@ def generate_DMS_fragments(
                                         xfrag.upper().count(x)
                                         + xfrag.upper().count(x.reverse_complement())
                                     )
-                                    > 2
+                                    > 0
                                     for x in DIMPLE.avoid_sequence
                                 ]
                             ):
-                                raise ValueError(
-                                    "Unwanted restriction site found within insertion fragment"
+                                warnings.warn(
+                                    "Unwanted restriction site found during deletion generation"
                                 )
-                                # xfrag = tmpseq[0:i-delete_n-3] + tmpseq[i+delete_n:] iteratively shift deletion to avoid cut sites? or mutate codons of near by aa?
-                            dms_sequences.append(
-                                SeqRecord(
-                                    xfrag,
-                                    id=gene.geneid
-                                    + "_delete-"
-                                    + str(idx + 1)
-                                    + "_"
-                                    + str(delete_n)
-                                    + "-"
-                                    + str(
-                                        int(
-                                            (
-                                                frag[0]
-                                                + i
-                                                + 3
-                                                - offset
-                                                - DIMPLE.primerBuffer
-                                            )
-                                            / 3
+
+                                wt_codon_r = tmpseq[i + delete_n + 3: i + delete_n + 6].upper()
+                                wt_r = [
+                                    name
+                                    for name, codon in gene.SynonymousCodons.items()
+                                    if wt_codon_r in codon
+                                ]
+                                wt_codon_l = tmpseq[i - 3 : i].upper()
+                                wt_l = [
+                                    name
+                                    for name, codon in gene.SynonymousCodons.items()
+                                    if wt_codon_l in codon
+                                ]
+
+                                # Hopefully there is a synonymous codon to try.
+                                if len(wt_r) == 1 and len(wt_l) == 1:
+                                    if (len(gene.SynonymousCodons[wt_r[0]]) > 1 or len(gene.SynonymousCodons[wt_l[0]]) > 1):
+                                        for codon_pair in itertools.product(
+                                            gene.SynonymousCodons[wt_l[0]],
+                                            gene.SynonymousCodons[wt_r[0]]
+                                        ):
+                                            tmpseq[0:i] + tmpseq[i + delete_n :]
+                                            test_frag = tmpseq[0 : i - 3] + codon_pair[0] + codon_pair[1] + tmpseq[i + delete_n + 6 :]
+                                            if not any(
+                                                [
+                                                    (
+                                                        test_frag.upper().count(x)
+                                                        + test_frag.upper().count(
+                                                            x.reverse_complement()
+                                                        )
+                                                    ) > 0 for x in DIMPLE.avoid_sequence
+                                                ]
+                                            ):
+                                                print("Changed codons to avoid restriction site in deletion oligo")                                                            
+                                                xfrag = test_frag
+                                                break
+                            # Final check
+                            if any(
+                                [
+                                    (
+                                        xfrag.upper().count(x)
+                                        + xfrag.upper().count(
+                                            x.reverse_complement()
                                         )
-                                    ),
-                                    description="Frag " + fragstart + "-" + fragend,
+                                    )
+                                    > 0
+                                    for x in DIMPLE.avoid_sequence
+                                ]
+                            ):
+                                warnings.warn("Unable to avoid restriction site. Skipping mutation: " + 
+                                              wt[0] +
+                                              str(int((frag[0] + i + 3 - offset - DIMPLE.primerBuffer) / 3)) 
+                                              + jk
+                                              )
+                            else:
+                                dms_sequences.append(
+                                    SeqRecord(
+                                        xfrag,
+                                        id=gene.geneid
+                                        + "_delete-"
+                                        + str(idx + 1)
+                                        + "_"
+                                        + str(delete_n)
+                                        + "-"
+                                        + str(
+                                            int(
+                                                (
+                                                    frag[0]
+                                                    + i
+                                                    + 3
+                                                    - offset
+                                                    - DIMPLE.primerBuffer
+                                                )
+                                                / 3
+                                            )
+                                        ),
+                                        description="Frag " + fragstart + "-" + fragend,
+                                    )
                                 )
-                            )
                 if dis:
                     # insertion
                     for i in range(offset, offset + frag[1] - frag[0] + 3, 3):
@@ -1388,12 +1639,12 @@ def generate_DMS_fragments(
                                             xfrag.upper().count(x)
                                             + xfrag.upper().count(x.reverse_complement())
                                     )
-                                    > 2
+                                    > 0
                                     for x in DIMPLE.avoid_sequence
                                 ]
                         ):
                             raise ValueError(
-                                "Unwanted restriction site found within insertion fragment"
+                                "Unwanted restriction site found within handle insertion fragment"
                             )
                             # not sure how to solve this issue
                             # mutation?
@@ -1440,19 +1691,33 @@ def generate_DMS_fragments(
                             compileF.append(barF)
                             compileR.append(barR)
                             while difference / 2 > len(barF):
+                                # Need to check if this introduces a restriction site
                                 tmpF = DIMPLE.barcodeF.pop(0)
                                 tmpR = DIMPLE.barcodeR.pop(0)
                                 compileF.append(tmpF)
                                 compileR.append(tmpR)
-                                barF += tmpF
-                                barR += tmpR
                                 count += 1  # How many barcodes used
+                                if any(
+                                        [
+                                            (
+                                                (barF + tmpF).seq.count(x) +
+                                                (barF + tmpF).seq.count(x.reverse_complement()) +
+                                                (barR + tmpR).seq.count(x) +
+                                                (barR + tmpR).seq.count(x.reverse_complement())
+                                            ) > 0 for x in DIMPLE.avoid_sequence
+                                        ]
+                                ):
+                                    warnings.warn("Unwanted restriction site found in barcode primer generation")                                    
+                                else:
+                                    barF += tmpF
+                                    barR += tmpR
+
                             tmpfrag_1 = (
                                     barF.seq[0: int(difference / 2)]
                                     + DIMPLE.cutsite
                                     + "C"
                                     + tmpseq[0:4]
-                            )  # include recoginition site and the 4 base overhang
+                            )  # include recognition site and the 4 base overhang
                             tmpfrag_2 = (
                                     tmpseq[-4:]
                                     + "G"
@@ -1865,6 +2130,16 @@ def post_qc(OLS):
     grouped = iter(all_barPrimers)
     grouped = zip(grouped, grouped)  # create the combinatorial comparisons
     nonspecific = []
+
+    print("Running test for presence of unwanted sequences")
+    # Iterate over oligos and check for presence of unwanted sequences
+    for oligo in all_oligos:
+        for sequence in DIMPLE.avoid_sequence:
+            if oligo.seq.count(sequence) > 1:
+                print(oligo.seq.count(sequence))
+                print("Warning: found unwanted sequence in oligo: " + oligo.id)
+                print("Sequence: " + oligo.seq)
+
     # iterate over every barcode primer pair and match to each oligo to check for nonspecific amplification
     for idxPrime, primers in enumerate(
         grouped
@@ -1967,3 +2242,4 @@ def post_qc(OLS):
         print(nonspecific)
     else:
         print("No non-specific primers detected")
+    

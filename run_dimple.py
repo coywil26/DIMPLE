@@ -93,9 +93,12 @@ OLS = addgene(os.path.join(args.wDir, args.geneFile).strip())
 if args.matchSequences == 'match':
     align_genevariation(OLS)
 if args.deletions:
-    args.deletions = [int(x) for x in args.deletions]
+    if type(args.deletions) == list:
+        args.deletions = [int(x) for x in args.deletions[0].split(',')]
 if not any([DIMPLE.dms, args.insertions, args.deletions]):
     raise ValueError("Didn't select any mutations to generate")
+
+print('Deletions: ', args.deletions)
 
 if args.custom_mutations:
     # load file with custom mutations

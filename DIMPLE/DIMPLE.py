@@ -35,6 +35,7 @@ from Bio.SeqRecord import SeqRecord
 from Bio.SeqUtils import MeltingTemp as mt
 from Bio.SeqUtils import seq3
 
+
 def addgene(genefile, start=None, end=None):
     """Generate a list of DIMPLE classes from a fasta file containing genes."""
     if start is None:
@@ -917,7 +918,8 @@ def generate_DMS_fragments(
     if insert or delete or dis:
         insert_list = []
         if insert:
-            insert_list.extend(insert)
+            for i in insert:
+                insert_list.extend(i.split(','))
         if dis:
             insert_list.append(DIMPLE.handle)
         if insert or dis:
@@ -927,7 +929,8 @@ def generate_DMS_fragments(
                 - max([len(x) for x in insert_list])
                 - overlapL
                 - overlapR
-            )  # increase barcode space to allow for variable sized fragments within an oligo
+            )
+            # increase barcode space to allow for variable sized fragments within an oligo
         if delete and not insert and not dis:
             DIMPLE.maxfrag = DIMPLE.synth_len - 64 - overlapL - overlapR
         print("New max fragment:" + str(DIMPLE.maxfrag))
@@ -1254,7 +1257,7 @@ def generate_DMS_fragments(
                                                             break
                                         if match < i:
                                             # Change the codon to the left
-                                            wt_codon_l = tmpseq[i-3:i].upper()
+                                            wt_codon_l = tmpseq[i-3 : i].upper()
                                             wt_l = [
                                                 name
                                                 for name, codon in gene.SynonymousCodons.items()
@@ -1363,19 +1366,19 @@ def generate_DMS_fragments(
                                 description="Frag " + fragstart + "-" + fragend,
                             )
                         )
-                        with open(
-                            os.path.join(
-                                folder.replace("\\", ""), gene.geneid + "_mutations.csv"
-                            ),
-                            "a",
-                        ) as file:
-                            for mut in mutations.keys():
-                                file.write(mut + "\n")
-                                file.write(mutations[mut] + "\n")
+                    with open(
+                        os.path.join(
+                            folder.replace("\\", ""), gene.geneid + "_mutations.csv"
+                        ),
+                        "a",
+                    ) as file:
+                        for mut in mutations.keys():
+                            file.write(mut + "\n")
+                            file.write(mutations[mut] + "\n")
                 if insert:
                     # insertion
                     for i in range(offset, offset + frag[1] - frag[0] + 3, 3):
-                        for insert_n in insert:
+                        for insert_n in insert_list:
                             xfrag = (
                                 tmpseq[0:i] + insert_n + tmpseq[i:]
                             )  # Add mutation to fragment
@@ -1407,63 +1410,59 @@ def generate_DMS_fragments(
                                 
                                 # For any matches, we change the codon to the left or right of the mutation codon
                                 # based on the location.
-                                if match >= i:
-                                    # Change the codon to the right
-                                    wt_codon_r = tmpseq[i + 3: i + 6].upper()
-                                    wt_r = [
-                                        name
-                                        for name, codon in gene.SynonymousCodons.items()
-                                        if wt_codon_r in codon
-                                    ]
-                                    # Hopefully there is a synonymous codon to try.
-                                    if len(wt_r) == 1:
-                                        if len(gene.SynonymousCodons[wt_r[0]]) > 1:
-                                            for codon_pair in itertools.product(
-                                                gene.SynonymousCodons[jk],
-                                                gene.SynonymousCodons[wt_r[0]]
-                                            ):
-                                                test_frag = tmpseq[0 : i] + codon_pair[0] + codon_pair[1] + tmpseq[i + 6 :]
-                                                if not any(
-                                                    [
-                                                        (
-                                                            test_frag.upper().count(x)
-                                                            + test_frag.upper().count(
-                                                                x.reverse_complement()
-                                                            )
-                                                        ) > 0 for x in DIMPLE.avoid_sequence
-                                                    ]
-                                                ):
-                                                    print("Changed codon on right to avoid restriction site")                                                            
-                                                    xfrag = test_frag
-                                                    break
-                                if match < i:
-                                    # Change the codon to the left
-                                    wt_codon_l = tmpseq[i - 3 : i].upper()
-                                    wt_l = [
-                                        name
-                                        for name, codon in gene.SynonymousCodons.items()
-                                        if wt_codon_l in codon
-                                    ]
-                                    if len(wt_l) == 1:
-                                        if len(gene.SynonymousCodons[wt_l[0]]) > 1:
-                                            for codon_pair in itertools.product(
-                                                gene.SynonymousCodons[wt_l[0]],
-                                                gene.SynonymousCodons[jk]
-                                            ):
-                                                test_frag = tmpseq[0 : i - 3] + codon_pair[0] + codon_pair[1] + tmpseq[i + 3 :]
-                                                if not any(
-                                                    [
-                                                        (
-                                                            test_frag.upper().count(x)
-                                                            + test_frag.upper().count(
-                                                                x.reverse_complement()
-                                                            )
-                                                        ) > 0 for x in DIMPLE.avoid_sequence
-                                                    ]
-                                                ):
-                                                    xfrag = test_frag
-                                                    print("Changed codon on left to avoid restriction site")
-                                                    break
+                                for location in match_locations:                                   
+                                    if location >= i:
+                                        # Change the codon to the right
+                                        wt_codon_r = tmpseq[i: i + 3].upper()
+                                        wt_r = [
+                                            name
+                                            for name, codon in gene.SynonymousCodons.items()
+                                            if wt_codon_r in codon
+                                        ]
+                                        # Hopefully there is a synonymous codon to try.
+                                        if len(wt_r) == 1:
+                                            if len(gene.SynonymousCodons[wt_r[0]]) > 1:
+                                                for codon in gene.SynonymousCodons[wt_r[0]]:
+                                                    test_frag = tmpseq[0 : i] + insert_n + codon +  tmpseq[i + 3 : ]
+                                                    if not any(
+                                                        [
+                                                            (
+                                                                test_frag.upper().count(x)
+                                                                + test_frag.upper().count(
+                                                                    x.reverse_complement()
+                                                                )
+                                                            ) > 0 for x in DIMPLE.avoid_sequence
+                                                        ]
+                                                    ):
+                                                        print("Changed codon on right to avoid restriction site")
+                                                        xfrag = test_frag
+                                                        break
+                                    if location < i:
+                                        # Change the codon to the left
+
+                                        wt_codon_l = tmpseq[i - 3 : i].upper()
+                                        wt_l = [
+                                            name
+                                            for name, codon in gene.SynonymousCodons.items()
+                                            if wt_codon_l in codon
+                                        ]
+                                        if len(wt_l) == 1:
+                                            if len(gene.SynonymousCodons[wt_l[0]]) > 1:
+                                                for codon in gene.SynonymousCodons[wt_l[0]]:
+                                                    test_frag = tmpseq[0:i - 3] + codon + insert_n + tmpseq[i:]
+                                                    if not any(
+                                                        [
+                                                            (
+                                                                test_frag.upper().count(x)
+                                                                + test_frag.upper().count(
+                                                                    x.reverse_complement()
+                                                                )
+                                                            ) > 0 for x in DIMPLE.avoid_sequence
+                                                        ]
+                                                    ):
+                                                        xfrag = test_frag
+                                                        print("Changed codon on left to avoid restriction site")
+                                                        break
 
                             # Final check
                             if any(
@@ -1511,6 +1510,7 @@ def generate_DMS_fragments(
                     # fragment lengths are too high? no.
                     # overlaps are too small for larger deletion sizes. why?
 
+
                     for i in range(offset, offset + frag[1] - frag[0] + 3, 3):
                         for delete_n in delete:
                             if delete_n + i > len(tmpseq):
@@ -1544,7 +1544,7 @@ def generate_DMS_fragments(
                                     "Unwanted restriction site found during deletion generation"
                                 )
 
-                                wt_codon_r = tmpseq[i + delete_n + 3: i + delete_n + 6].upper()
+                                wt_codon_r = tmpseq[i + delete_n: i + delete_n + 3].upper()
                                 wt_r = [
                                     name
                                     for name, codon in gene.SynonymousCodons.items()
@@ -1564,8 +1564,8 @@ def generate_DMS_fragments(
                                             gene.SynonymousCodons[wt_l[0]],
                                             gene.SynonymousCodons[wt_r[0]]
                                         ):
-                                            tmpseq[0:i] + tmpseq[i + delete_n :]
-                                            test_frag = tmpseq[0 : i - 3] + codon_pair[0] + codon_pair[1] + tmpseq[i + delete_n + 6 :]
+                                            #tmpseq[0:i] + tmpseq[i + delete_n :]
+                                            test_frag = tmpseq[0 : i - 3] + codon_pair[0] + codon_pair[1] + tmpseq[i + delete_n + 3 :]
                                             if not any(
                                                 [
                                                     (
@@ -1576,7 +1576,7 @@ def generate_DMS_fragments(
                                                     ) > 0 for x in DIMPLE.avoid_sequence
                                                 ]
                                             ):
-                                                print("Changed codons to avoid restriction site in deletion oligo")                                                            
+                                                print("Changed codons to avoid restriction site in deletion oligo")          
                                                 xfrag = test_frag
                                                 break
                             # Final check

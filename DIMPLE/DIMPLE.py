@@ -918,8 +918,7 @@ def generate_DMS_fragments(
     if insert or delete or dis:
         insert_list = []
         if insert:
-            for i in insert:
-                insert_list.extend(i.split(','))
+            insert_list.extend(insert)
         if dis:
             insert_list.append(DIMPLE.handle)
         if insert or dis:
@@ -1439,7 +1438,6 @@ def generate_DMS_fragments(
                                                         break
                                     if location < i:
                                         # Change the codon to the left
-
                                         wt_codon_l = tmpseq[i - 3 : i].upper()
                                         wt_l = [
                                             name
@@ -1509,7 +1507,6 @@ def generate_DMS_fragments(
                     # TODO: failing here, for some reason. i becomes too large.
                     # fragment lengths are too high? no.
                     # overlaps are too small for larger deletion sizes. why?
-
 
                     for i in range(offset, offset + frag[1] - frag[0] + 3, 3):
                         for delete_n in delete:

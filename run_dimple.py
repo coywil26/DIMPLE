@@ -16,12 +16,12 @@ parser.add_argument('-dis', default=False, help='use the handle to insert domain
 parser.add_argument('-matchSequences', action='store_const', const='match', default='nomatch', help='Find similar sequences between genes to avoid printing the same oligos multiple times. Default: No matching')
 parser.add_argument('-oligoLen', type=int, default=230, help='Synthesized oligo length')
 parser.add_argument('-fragmentLen', default=[], type=int, help='Maximum length of gene fragment')
-parser.add_argument('-overlap', default=3, type=int, help='Enter number of bases to extend each fragment for overlap. This will help with insertions close to fragment boundary')
+parser.add_argument('-overlap', default=4, type=int, help='Enter number of bases to extend each fragment for overlap. This will help with insertions close to fragment boundary')
 parser.add_argument('-DMS', action='store_const', const=True, default=False, help='Choose if you will run deep deep mutation scan')
 parser.add_argument('-custom_mutations', default=None, help='Path to file that includes custom mutations with the format position:AA')
 parser.add_argument('-usage', default='human', help='Default is "human". Or select "ecoli. Or change code"')
-parser.add_argument('-insertions', default=False, nargs='+', help='Enter a list of insertions (nucleotides) to make at every position. Note, you should enter multiples of 3 nucleotides to maintain reading frame')
-parser.add_argument('-deletions', default=False, nargs='+', help='Enter a list of deletions (number of nucleotides) to symmetrically delete (it will make deletions in multiples of 2x). Note you should enter multiples of 3 to maintain reading frame')
+parser.add_argument('-insertions', default=False, nargs='+', help='Enter a list of insertions (nucleotides) to make at every position. Note, you should enter multiples of 3 nucleotides to maintain reading frame. Example: \'-insertions GGG GGGAGC GGGAGCGGT\'')
+parser.add_argument('-deletions', default=False, nargs='+', help='Enter a list of deletion lengths (number of nucleotides) to generate. Note you should enter multiples of 3 to maintain reading frame. Example: \'-deletions 3 6 9\')')
 parser.add_argument('-include_substitutions', default=False, help='If you are running DMS but only want to insert or delete AA')
 parser.add_argument('-barcode_start', default=0, help='To run DIMPLE multiple times, you will need to avoid using the same barcodes. This allows you to start at a different barcode.')
 parser.add_argument('-restriction_sequence', default='CGTCTC', help='Recommended using BsmBI - CGTCTC or BsaI - GGTCTC')
@@ -93,12 +93,9 @@ OLS = addgene(os.path.join(args.wDir, args.geneFile).strip())
 if args.matchSequences == 'match':
     align_genevariation(OLS)
 if args.deletions:
-    if type(args.deletions) == list:
-        args.deletions = [int(x) for x in args.deletions[0].split(',')]
+    args.deletions = [int(x) for x in args.deletions]
 if not any([DIMPLE.dms, args.insertions, args.deletions]):
     raise ValueError("Didn't select any mutations to generate")
-
-print('Deletions: ', args.deletions)
 
 if args.custom_mutations:
     # load file with custom mutations

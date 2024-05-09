@@ -26,6 +26,7 @@ import warnings
 from difflib import SequenceMatcher
 from math import ceil
 from random import randrange
+from DIMPLE.utilities import findORF
 
 import numpy as np
 from Bio import SeqIO, pairwise2
@@ -173,81 +174,11 @@ class DIMPLE:
                 + str([DIMPLE.avoid_sequence[i] for i, x in enumerate(match_sites) if bool(x)])
             )  # change codon
         if start and end and (end - start) % 3 != 0:
-            print("Gene length is not divisible by 3")
+            print("Gene length is not divisible by 3. Reseting start and end.")
             start = []
             end = []
         if not start and not end:
-            # Scan through all strands and frames for open reading frames
-            min_protein_len = 100  # Support for finding gene position in vector
-            genestart = []
-            geneend = []
-            genestrand = []
-            print("Analyzing Gene:" + self.geneid)
-            for strand, nuc in [(+1, gene.seq), (-1, gene.seq.reverse_complement())]:
-                for frame in range(3):
-                    length = 3 * ((len(gene) - frame) // 3)  # Multiple of three
-                    translated = nuc[frame : frame + length].translate()
-                    for protein in translated.split("*"):
-                        if len(protein) >= min_protein_len:
-                            if len(protein.split("M", 1)) > 1:
-                                ORF = "M" + protein.split("M", 1)[1]
-                                genestart.append(translated.find(ORF) * 3 + frame + 1)
-                                geneend.append(genestart[-1] + len(ORF) * 3 - 1)
-                                genestrand.append(strand)
-                                print(
-                                    "ORF#%i %s...%s - length %i, strand %i, frame %i"
-                                    % (
-                                        len(genestart),
-                                        ORF[:25],
-                                        ORF[-10:],
-                                        len(ORF),
-                                        strand,
-                                        frame + 1,
-                                    )
-                                )
-            # Select Gene Frame
-            while True:
-                try:
-                    genenum = int(
-                        input("Which ORF are you targeting? (number):")
-                    )  # userinput
-                    if genestrand[genenum - 1] == -1:
-                        gene.seq = gene.seq.reverse_complement()
-                except:
-                    print("Please enter number")
-                    continue
-                else:
-                    break
-            start = genestart[genenum - 1] - 1  # subtract 1 to account for 0 indexing
-            end = geneend[genenum - 1]
-            print(gene.seq[start:end].translate()[:10])
-            quest = "g"  # holding place
-
-            while quest != "n" and quest != "y":
-                quest = input(
-                    "Is this the beginning of your gene?(position %i) (y/n):" % (start)
-                )
-            while quest == "n":
-                start = int(input("Enter the starting position your gene:"))
-                print(gene.seq[start:end].translate()[:10])
-                quest = input(
-                    "Is this the beginning of your gene?(position %i) (y/n):" % (start)
-                )
-            print(gene.seq[start:end].translate()[-10:])
-            quest = "g"
-            while quest != "n" and quest != "y":
-                quest = input("Is the size of your gene %ibp? (y/n):" % (end - start))
-            while quest == "n":
-                try:
-                    end = int(input("Enter nucleotide length of your gene:")) + start
-                    if (end - start) % 3 != 0:
-                        print("Length is not divisible by 3")
-                        continue
-                    print(gene.seq[start:end].translate()[-10:])
-                    quest = input("Is this end correct? (y/n):")
-                except:
-                    print("Please enter a number")
-                    quest = "n"
+            start, end = findORF(gene)
         self.aacount = int((end - start) / 3)
         self.start = start
         self.end = end
@@ -584,8 +515,11 @@ def find_fragment_primer(fragment, stop):
 
 def check_nonspecific(primer, fragment, point):
     non = []
+    # fragment is the entire gene sequence plus the buffer sequence on each side
+    # point is the position of the primer in the fragment
     # Forward
     for i in range(len(fragment) - len(primer)):  # Scan each position
+        # first check if the primer binds at each position in the fragment
         match = [
             primer[j].lower() == fragment[i + j].lower() for j in range(len(primer))
         ]
@@ -596,6 +530,10 @@ def check_nonspecific(primer, fragment, point):
             ):
                 first = k
                 break
+        # if the primer binds to 80% of the first ... bases
+        # and more than 6 bases
+        # and the 3' matches
+        # then check melting temperature
         if (
             sum(match[first:]) > len(primer[first:]) * 0.8
             and sum(match[first:]) > 6
@@ -603,6 +541,7 @@ def check_nonspecific(primer, fragment, point):
             and point != i
         ):  # string compare - sum of matched nt is greater than 80%
             try:
+                # check the melting temperature of the primer
                 melt = mt.Tm_NN(
                     primer[first:],
                     c_seq=fragment[i + first : i + len(primer)].complement(),
@@ -610,9 +549,9 @@ def check_nonspecific(primer, fragment, point):
                     de_table=mt.DNA_DE1,
                     imm_table=mt.DNA_IMM1,
                 )
-                if melt > 20:
+                if melt > 25:
                     print("Found non-specific match at " + str(i + 1) + "bp:")
-                    print(" match:" + fragment[i : i + len(primer)])
+                    print("match: " + fragment[i: i + len(primer)])
                     print("primer:" + primer + " Tm:" + str(round(melt, 1)))
                 if melt > 35:
                     non.append(True)
@@ -693,7 +632,7 @@ def recalculate_num_fragments(gene):
         gene.breaklist = [
             [x + 3, x + gene.fragsize[idx]] for idx, x in enumerate(breaksites[:-1])
         ]  # insertion site to insertion site
-    gene.problemsites = set()
+    #gene.problemsites = set()
     gene.breaksites = breaksites
     gene.unique_Frag = [True] * len(gene.fragsize)
     return gene
@@ -969,9 +908,9 @@ def generate_DMS_fragments(
             fragstart = str(int((frag[0] - DIMPLE.primerBuffer) / 3) + 1)
             fragend = str(int((frag[1] - DIMPLE.primerBuffer) / 3))
             print(
-                "Creating Gene:"
+                "Creating Fragment:"
                 + gene.geneid
-                + " --- Fragment:"
+                + " --- Fragment #" + str(idx+1) + " AA:"
                 + fragstart
                 + "-"
                 + fragend
@@ -992,11 +931,11 @@ def generate_DMS_fragments(
                 forward, tmF, sF = find_geneprimer(
                     genefrag_F.reverse_complement(),
                     15,
-                    DIMPLE.primerBuffer + 1 - overlapR,
+                    DIMPLE.primerBuffer + 1 - overlapR
                 )
-                tmpr = check_nonspecific(
-                    reverse, gene.seq, frag[0] - len(gene.seq) + 10 - overlapL
-                )  # negative numbers look for reverse primers
+                # negative numbers look for reverse primers
+                # 10 bases is the buffer overhang on the primer
+                tmpr = check_nonspecific(reverse, gene.seq, frag[0] - len(gene.seq) + 10 - overlapL)
                 tmpf = check_nonspecific(forward, gene.seq, frag[1] - 10 + overlapR)
                 if tmpf or tmpr:
                     # swap size with another fragment
@@ -1160,11 +1099,19 @@ def generate_DMS_fragments(
                                 p = [xp / sum(p) for xp in p]  # Normalize to 1
                                 if not p:
                                     continue
+                                #TODO pick based on maximizing nucleotide changes
+                                # remove codons with only one change compared to wt_codon
+                                max_codons = [x for x in codons if sum([x[i] != wt_codon[i] for i in range(3)]) > 1]
+                                if max_codons:
+                                    #FIXME: this is a hack to avoid a crash. fix could include a synonymous mutation in neighbor
+                                    codons = max_codons
+                                else:
+                                    print('WARNING: no codons with more than one base change')
                                 mutation = np.random.choice(
                                     codons, 1, p
                                 )  # Pick one codon
                                 xfrag = (
-                                    tmpseq[0:i] + mutation[0] + tmpseq[i + 3 :]
+                                    tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]
                                 )  # Add mutation to fragment
                                 # Check each cassette for more than 2 BsmBI and 2 BsaI sites
                                 while any(

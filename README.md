@@ -1,7 +1,9 @@
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/coywil26/DIMPLE/blob/master/DIMPLE.ipynb)
 # DIMPLE: Deep Indel Missense Programmable Library Engineering
 ### Protein domain insertion via programmed oligo libraries
-Python script for generating oligo libraries and PCR primers for programmed domain insertion
+Python script for generating oligo libraries and PCR primers for programmed domain insertion <br />
+Paper is linked here: (https://genomebiology.biomedcentral.com/articles/10.1186/s13059-023-02880-6)
+and here: (https://www.biorxiv.org/content/10.1101/2022.07.26.501589v1.full.pdf)
 
 # License
 

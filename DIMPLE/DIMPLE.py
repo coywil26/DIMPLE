@@ -163,16 +163,15 @@ class DIMPLE:
         self.complement = {"A": "T", "C": "G", "G": "C", "T": "A"}
 
         # First check for unwanted cutsites (BsaI sites and BsmBI sites)
-        if any(
-            [
+        match_sites = [
                 gene.seq.upper().count(cut)
                 + gene.seq.upper().count(cut.reverse_complement())
                 for cut in DIMPLE.avoid_sequence
             ]
-        ):
+        if any(match_sites):
             raise ValueError(
                 "Unwanted Restriction cut sites found. Please input plasmids with these removed."
-                + str(DIMPLE.avoid_sequence)
+                + str([DIMPLE.avoid_sequence[i] for i, x in enumerate(match_sites) if bool(x)])
             )  # change codon
         if start and end and (end - start) % 3 != 0:
             print("Gene length is not divisible by 3. Reseting start and end.")
@@ -186,7 +185,7 @@ class DIMPLE:
         # record sequence with extra bp to account for primer. for plasmids (circular) we can rearrange linear sequence)
         if start - self.primerBuffer < 0:
             self.seq = (
-                gene.seq[start - self.primerBuffer:]
+                gene.seq[start - self.primerBuffer :]
                 + gene.seq[: end + self.primerBuffer + 6]
             )
         elif end + self.primerBuffer > len(gene.seq):
@@ -858,9 +857,9 @@ def generate_DMS_fragments(
         insert_list = []
         if insert:
             insert_list.extend(insert)
-        if dms:
+        if dis:
             insert_list.append(DIMPLE.handle)
-        if insert or dms:
+        if insert or dis:
             DIMPLE.maxfrag = (
                 DIMPLE.synth_len
                 - 64

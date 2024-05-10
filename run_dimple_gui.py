@@ -17,10 +17,9 @@ def run():
     if app.wDir is None:
         app.wDir = app.geneFile.rsplit('/', 1)[0]+'/'
 
-    #if any([x not in ['A', 'C', 'G', 'T', 'a', 'c', 'g', 't'] for x in app.handle.get()]):
-    #   raise ValueError('Genetic handle contains non nucleic bases')
+    if any([x not in ['A', 'C', 'G', 'T', 'a', 'c', 'g', 't'] for x in app.handle.get()]):
+       raise ValueError('Genetic handle contains non nucleic bases')
 
-    #DIMPLE.handle = app.handle.get()
     DIMPLE.synth_len = int(app.oligoLen.get())
     overlapL = int(app.overlap.get())
     overlapR = int(app.overlap.get())
@@ -65,7 +64,7 @@ def run():
     DIMPLE.stop_codon = app.stop.get()
     DIMPLE.dms = app.include_substitutions.get()
     DIMPLE.make_double = app.make_double.get()
-    DIMPLE.handle = app.handle
+    DIMPLE.handle = app.handle.get()
     DIMPLE.doublefrag = app.doublefrag
     DIMPLE.gene_primerTM = (app.melting_temp_low.get(), app.melting_temp_high.get())
 

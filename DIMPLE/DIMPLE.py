@@ -22,6 +22,7 @@ Use align_genevariation()
 
 import itertools
 import os
+import re
 import warnings
 from difflib import SequenceMatcher
 from math import ceil
@@ -1064,6 +1065,7 @@ def generate_DMS_fragments(
                     positions = [tmp_positions[i] for i, x in tmp_mut_positions]
                 else:
                     mut_positions = range(offset, offset + frag[1] - frag[0] + 3, 3)
+                    positions = [int((frag[0] + x + 3 - offset - DIMPLE.primerBuffer) / 3) for x in mut_positions]
                 if dms:
                     mutations = {}
                     for i in mut_positions:
@@ -1104,15 +1106,42 @@ def generate_DMS_fragments(
                                 max_codons = [x for x in codons if sum([x[i] != wt_codon[i] for i in range(3)]) > 1]
                                 if max_codons:
                                     #FIXME: this is a hack to avoid a crash. fix could include a synonymous mutation in neighbor
-                                    codons = max_codons
+                                    mutation = np.random.choice(
+                                        max_codons, 1, p
+                                    )  # Pick one codon
+                                    xfrag = (
+                                            tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]
+                                    )  # Add mutation to fragment
                                 else:
-                                    print('WARNING: no codons with more than one base change')
-                                mutation = np.random.choice(
-                                    codons, 1, p
-                                )  # Pick one codon
-                                xfrag = (
-                                    tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]
-                                )  # Add mutation to fragment
+                                    #print('WARNING: no codons with more than one base change. Creating synonymous mutation in neighboring codon.')
+                                    mutation = np.random.choice(
+                                        codons, 1, p
+                                    )  # Pick one codon
+                                    # find neighboring codon
+                                    tmp_synonymous = [name for name, codon in gene.SynonymousCodons.items() if tmpseq[i-3:i] in codon]
+                                    synonymous_codons = gene.SynonymousCodons[tmp_synonymous[0]]
+                                    max_synonymous = [x for x in synonymous_codons if sum([x[c] != tmpseq[i-3:i][c] for c in range(3)]) > 0]
+                                    if max_synonymous and not (idx == 0 and mut_positions.index(i) == 0):
+                                        synonymous_mutation = np.random.choice(max_synonymous, 1)
+                                        xfrag = (
+                                                tmpseq[0:i-3] + synonymous_mutation[0] + mutation[0] + tmpseq[i + 3:]
+                                        )  # Add mutation to fragment
+                                    else:
+                                        tmp_synonymous = [name for name, codon in gene.SynonymousCodons.items() if tmpseq[i+3:i+6] in codon]
+                                        synonymous_codons = gene.SynonymousCodons[tmp_synonymous[0]]
+                                        max_synonymous = [x for x in synonymous_codons if
+                                                          sum([x[c] != tmpseq[i+3:i+6][c] for c in range(3)]) > 0]
+                                        if max_synonymous:
+                                            synonymous_mutation = np.random.choice(
+                                                max_synonymous, 1
+                                            )
+                                            xfrag = (
+                                                    tmpseq[0:i] + mutation[0] + synonymous_mutation[0] + tmpseq[i + 6:]
+                                            )  # Add mutation to fragment
+                                        else:
+                                            print('Unable to create synonymous mutation in neighboring codon. Continuing with single nucleotide change')
+                                            xfrag = (tmpseq[0:i] + mutation[0] + tmpseq[i + 3:])
+                                            print(xfrag)
                                 # Check each cassette for more than 2 BsmBI and 2 BsaI sites
                                 while any(
                                     [
@@ -1173,33 +1202,34 @@ def generate_DMS_fragments(
                             # select every permutation of mut_positions order doesn't matter
                             for combi in itertools.combinations(mutations.keys(), 2):
                                 # extract number from mutation name
-                                pos1 = mut_positions[
-                                    positions.index(int(combi[0][4: len(combi[0]) - 3]))
-                                ]
-                                pos2 = mut_positions[
-                                    positions.index(int(combi[1][4: len(combi[1]) - 3]))
-                                ]
-                                if pos1 != pos2:
-                                    xfrag = (
-                                            tmpseq[0:pos1]
-                                            + mutations[combi[0]]
-                                            + tmpseq[pos1 + 3: pos2]
-                                            + mutations[combi[1]]
-                                            + tmpseq[pos2 + 3:]
-                                    )
-                                    dms_sequences_double.append(
-                                        SeqRecord(
-                                            xfrag,
-                                            id=gene.geneid
-                                               + "_DMS-"
-                                               + str(idx + 1)
-                                               + "_"
-                                               + combi[0].strip(">")
-                                               + "+"
-                                               + combi[1].strip(">"),
-                                description="Frag " + fragstart + "-" + fragend,
-                            )
-                        )
+                                if "STOP" not in combi[0] and "STOP" not in combi[1]:
+                                    pos1 = mut_positions[
+                                        positions.index(int(re.findall(r'\d+', combi[0])[0]))
+                                    ]
+                                    pos2 = mut_positions[
+                                        positions.index(int(re.findall(r'\d+', combi[1])[0]))
+                                    ]
+                                    if pos1 != pos2:
+                                        xfrag = (
+                                                tmpseq[0:pos1]
+                                                + mutations[combi[0]]
+                                                + tmpseq[pos1 + 3: pos2]
+                                                + mutations[combi[1]]
+                                                + tmpseq[pos2 + 3:]
+                                        )
+                                        dms_sequences_double.append(
+                                            SeqRecord(
+                                                xfrag,
+                                                id=gene.geneid
+                                                   + "_DMS-"
+                                                   + str(idx + 1)
+                                                   + "_"
+                                                   + combi[0].strip(">")
+                                                   + "+"
+                                                   + combi[1].strip(">"),
+                                                description="Frag " + fragstart + "-" + fragend
+                                            )
+                                        )
                         with open(
                             os.path.join(
                                 folder.replace("\\", ""), gene.geneid + "_mutations.csv"

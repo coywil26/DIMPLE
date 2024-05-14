@@ -1115,18 +1115,46 @@ def generate_DMS_fragments(
                                 #TODO pick based on maximizing nucleotide changes
                                 # remove codons with only one change compared to wt_codon
                                 if DIMPLE.maximize_nucleotide_change:
+                                    # remove codons with only one change compared to wt_codon
                                     max_codons = [x for x in codons if sum([x[i] != wt_codon[i] for i in range(3)]) > 1]
                                     if max_codons:
                                         #FIXME: this is a hack to avoid a crash. fix could include a synonymous mutation in neighbor
-                                        codons = max_codons
+                                        mutation = np.random.choice(
+                                            max_codons, 1, p
+                                        )  # Pick one codon
+                                        xfrag = (
+                                                tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]
+                                        )  # Add mutation to fragment
                                     else:
-                                        print('WARNING: no codons with more than one base change')
-                                mutation = np.random.choice(
-                                    codons, 1, p
-                                )  # Pick one codon
-                                xfrag = (
-                                    tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]
-                                )  # Add mutation to fragment
+                                        #print('WARNING: no codons with more than one base change. Creating synonymous mutation in neighboring codon.')
+                                        mutation = np.random.choice(
+                                            codons, 1, p
+                                        )  # Pick one codon
+                                        # find neighboring codon
+                                        tmp_synonymous = [name for name, codon in gene.SynonymousCodons.items() if tmpseq[i-3:i] in codon]
+                                        synonymous_codons = gene.SynonymousCodons[tmp_synonymous[0]]
+                                        max_synonymous = [x for x in synonymous_codons if sum([x[c] != tmpseq[i-3:i][c] for c in range(3)]) > 0]
+                                        if max_synonymous and not (idx == 0 and mut_positions.index(i) == 0):
+                                            synonymous_mutation = np.random.choice(max_synonymous, 1)
+                                            xfrag = (
+                                                    tmpseq[0:i-3] + synonymous_mutation[0] + mutation[0] + tmpseq[i + 3:]
+                                            )  # Add mutation to fragment
+                                        else:
+                                            tmp_synonymous = [name for name, codon in gene.SynonymousCodons.items() if tmpseq[i+3:i+6] in codon]
+                                            synonymous_codons = gene.SynonymousCodons[tmp_synonymous[0]]
+                                            max_synonymous = [x for x in synonymous_codons if
+                                                              sum([x[c] != tmpseq[i+3:i+6][c] for c in range(3)]) > 0]
+                                            if max_synonymous:
+                                                synonymous_mutation = np.random.choice(
+                                                    max_synonymous, 1
+                                                )
+                                                xfrag = (
+                                                        tmpseq[0:i] + mutation[0] + synonymous_mutation[0] + tmpseq[i + 6:]
+                                                )  # Add mutation to fragment
+                                            else:
+                                                print('Unable to create synonymous mutation in neighboring codon. Continuing with single nucleotide change')
+                                                xfrag = (tmpseq[0:i] + mutation[0] + tmpseq[i + 3:])
+                                                print(xfrag)
                                 # Check each cassette for more than 2 BsmBI and 2 BsaI sites
                                 while any(
                                     [

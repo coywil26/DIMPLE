@@ -937,9 +937,9 @@ def generate_DMS_fragments(
                     DIMPLE.primerBuffer + 1 - overlapR
                 )
                 # negative numbers look for reverse primers
-                # 10 bases is the buffer overhang on the primer
-                tmpr = check_nonspecific(reverse, gene.seq, frag[0] - len(gene.seq) + 4 + len(DIMPLE.cutsite) - overlapL)
-                tmpf = check_nonspecific(forward, gene.seq, frag[1] - 4 - len(DIMPLE.cutsite) + overlapR)
+                # 10 bases is the buffer overhang on the primer (ATA + (N))
+                tmpr = check_nonspecific(reverse, gene.seq, frag[0] - len(gene.seq) + 3 + len(DIMPLE.cutsite_buffer) + len(DIMPLE.cutsite) - overlapL)
+                tmpf = check_nonspecific(forward, gene.seq, frag[1] - 3 - len(DIMPLE.cutsite_buffer) - len(DIMPLE.cutsite) + overlapR)
                 if tmpf or tmpr:
                     # swap size with another fragment
                     if tmpf:

@@ -94,11 +94,11 @@ class DIMPLE:
     def __init__(self, gene, start=None, end=None):
         #  Search for ORF
         try:
-            DIMPLE.maxfrag  # if DIMPLE.maxfrag doesnt exist, create it
+            DIMPLE.maxfrag  # if DIMPLE.maxfrag doesn't exist, create it
         except AttributeError:
             DIMPLE.maxfrag = (
                 self.synth_len - 62
-            )  # based on space for barcodes, cut sites, handle
+            )  # based on space for barcodes, cut sites, handle. Doesn't need to be exact
         if start is None:
             start = []
         if end is None:
@@ -284,6 +284,8 @@ class DIMPLE:
             raise ValueError("Breaklist input is not a list")
 
 
+# This function is not used in the current version of the code
+# This will find genes that share the same sequence and avoid synthesizing the same oligos multiple times
 def align_genevariation(OLS):
     if not isinstance(OLS[0], DIMPLE):
         raise TypeError("Not an instance of the DIMPLE class")
@@ -307,7 +309,7 @@ def align_genevariation(OLS):
             if score / score_len > 1.5:  # Threshold for a matched gene set
                 index = [
                     x for x, geneset in enumerate(match) if m in geneset or p in geneset
-                ]  # Determine if aligned genes are in any of the previously match sets
+                ]  # Determine if aligned genes are in any of the previously matched sets
                 if not index:  # Create a new set if not
                     print(OLS[m].geneid)
                     print(OLS[p].geneid)
@@ -436,8 +438,8 @@ def find_geneprimer(genefrag, start, end):
     while primer.complement()[end - start + comp] == genefrag[end + comp]:
         comp += 1
     # comp += 1 # This is important for single basepair overhang
-    tm2 = mt.Tm_NN(primer[0 : end - start + comp], nn_table=mt.DNA_NN2)
-    tm4 = mt.Tm_NN(primer[0 : end - start + comp], nn_table=mt.DNA_NN4)
+    tm2 = mt.Tm_NN(primer[0: end - start + comp], nn_table=mt.DNA_NN2)
+    tm4 = mt.Tm_NN(primer[0: end - start + comp], nn_table=mt.DNA_NN4)
     count = 0
     while (
         tm2 < DIMPLE.gene_primerTm[0]
@@ -450,8 +452,8 @@ def find_geneprimer(genefrag, start, end):
             primer = (
                 genefrag[start:end].complement() + DIMPLE.cutsite[::-1] + "ATA"
             )  # cut site addition
-            tm2 = mt.Tm_NN(primer[0 : end - start + comp], nn_table=mt.DNA_NN2)
-            tm4 = mt.Tm_NN(primer[0 : end - start + comp], nn_table=mt.DNA_NN4)
+            tm2 = mt.Tm_NN(primer[0: end - start + comp], nn_table=mt.DNA_NN2)
+            tm4 = mt.Tm_NN(primer[0: end - start + comp], nn_table=mt.DNA_NN4)
         if (
             count > 12 or start == 0
         ):  # stop if caught in inf loop or if linker is at max (31 + 7 = 38 bases)
@@ -460,8 +462,8 @@ def find_geneprimer(genefrag, start, end):
             start += 1
             primer = genefrag[start:end].complement() + DIMPLE.cutsite[::-1] + "ATA"
             # tm = mt.Tm_NN(primer[0:e-s+comp],c_seq=genefrag[s:e+comp],nn_table=mt.DNA_NN2)
-            tm2 = mt.Tm_NN(primer[0 : end - start + comp], nn_table=mt.DNA_NN2)
-            tm4 = mt.Tm_NN(primer[0 : end - start + comp], nn_table=mt.DNA_NN4)
+            tm2 = mt.Tm_NN(primer[0: end - start + comp], nn_table=mt.DNA_NN2)
+            tm4 = mt.Tm_NN(primer[0: end - start + comp], nn_table=mt.DNA_NN4)
         count += 1
     # optional - force first nucleotide to a C or G
     # while primer[0]=="T" or primer[0]=="A" or primer[0]=="t" or primer[0]=="a":
@@ -817,10 +819,10 @@ def check_overhangs(gene, OLS, overlapL, overlapR):
         for idx, y in enumerate(gene.breaklist):
             # TODO: remove hardcoded 4 to allow different overhang lengths
             overhang_F = gene.seq[
-                y[0] - 4 - overlapL : y[0] - overlapR
+                y[0] - DIMPLE.cutsite_overhang - overlapL: y[0] - overlapR
             ]  # Forward overhang
             overhang_R = gene.seq[
-                y[1] + overlapL : y[1] + 4 + overlapR
+                y[1] + overlapL: y[1] + DIMPLE.cutsite_overhang + overlapR
             ]  # Reverse overhang
             if (
                 overhang_F == overhang_R
@@ -829,8 +831,8 @@ def check_overhangs(gene, OLS, overlapL, overlapR):
                 detectedsites.update([idx])
         # overhang = []
         # for idx, y in enumerate(gene.breaklist):
-        #     overhang.append([gene.seq[y[0] - 4 - overlapL: y[0] - overlapR], idx])  # Forward overhang
-        #     overhang.append([gene.seq[y[1] + overlapL: y[1] + 4 + overlapR], idx + 1])  # Reverse overhang
+        #     overhang.append([gene.seq[y[0] - DIMPLE.cutsite_overhang - overlapL: y[0] - overlapR], idx])  # Forward overhang
+        #     overhang.append([gene.seq[y[1] + overlapL: y[1] + DIMPLE.cutsite_overhang + overlapR], idx + 1])  # Reverse overhang
         # detectedsites = set()  # stores matching overhangs
         # for i in range(len(overhang)):  # check each overhang for matches
         #     for j in [x for x in range(len(overhang)) if x != i]:  # permutate over every overhang combination to find matches
@@ -840,7 +842,7 @@ def check_overhangs(gene, OLS, overlapL, overlapR):
         for detectedsite in detectedsites:
             switched = True
             if detectedsite == 0:
-                detectedsite = 1  # dont mess with the first cut site
+                detectedsite = 1  # don't mess with the first cut site
             print(
                 "------------------ Fragment size swapped due to matching overhangs ------------------"
             )
@@ -853,6 +855,7 @@ def check_overhangs(gene, OLS, overlapL, overlapR):
 def generate_DMS_fragments(
     OLS, overlapL, overlapR, synonymous, custom_mutations, dms=True, insert=False, delete=False, dis=False, folder=""
 ):
+    # TODO: Calculate maxfrag not just assuming 64
     """Generates the mutagenic oligos and writes the output to files."""
     # dms set to true for subsitition mutations
     # insert set to a list of insertions
@@ -929,13 +932,13 @@ def generate_DMS_fragments(
             ):  # only run analysis for one of the linked genes
                 # Primers for gene amplification with addition of BsmBI site
                 genefrag_R = gene.seq[
-                    frag[0] - DIMPLE.primerBuffer : frag[0] + DIMPLE.primerBuffer
+                    frag[0] - DIMPLE.primerBuffer: frag[0] + DIMPLE.primerBuffer
                 ]
                 reverse, tmR, sR = find_geneprimer(
                     genefrag_R, 15, DIMPLE.primerBuffer + 1 - overlapL
                 )  # 15 is just a starting point
                 genefrag_F = gene.seq[
-                    frag[1] - DIMPLE.primerBuffer : frag[1] + DIMPLE.primerBuffer
+                    frag[1] - DIMPLE.primerBuffer: frag[1] + DIMPLE.primerBuffer
                 ]
                 forward, tmF, sF = find_geneprimer(
                     genefrag_F.reverse_complement(),
@@ -943,9 +946,9 @@ def generate_DMS_fragments(
                     DIMPLE.primerBuffer + 1 - overlapR
                 )
                 # negative numbers look for reverse primers
-                # 10 bases is the buffer overhang on the primer
-                tmpr = check_nonspecific(reverse, gene.seq, frag[0] - len(gene.seq) + 10 - overlapL)
-                tmpf = check_nonspecific(forward, gene.seq, frag[1] - 10 + overlapR)
+                # 10 bases is the buffer overhang on the primer (ATA + (N))
+                tmpr = check_nonspecific(reverse, gene.seq, frag[0] - len(gene.seq) + 3 + len(DIMPLE.cutsite_buffer) + len(DIMPLE.cutsite) - overlapL)
+                tmpf = check_nonspecific(forward, gene.seq, frag[1] - 3 - len(DIMPLE.cutsite_buffer) - len(DIMPLE.cutsite) + overlapR)
                 if tmpf or tmpr:
                     # swap size with another fragment
                     if tmpf:
@@ -1046,12 +1049,12 @@ def generate_DMS_fragments(
                 count = 0
                 # TODO: remove hardcoded 4
                 tmpseq = gene.seq[
-                    frag[0] - 4 - overlapL : frag[1] + 4 + overlapR
+                    frag[0] - DIMPLE.cutsite_overhang - overlapL : frag[1] + DIMPLE.cutsite_overhang + overlapR
                 ].replace(
                     "-", ""
                 )  # extract sequence for oligo fragment include an extra 4 bases for BsmBI cut site and overlap
                 # TODO: rather than fixed 4 bp, adjust offset change to allow for different cutsite sizes
-                offset = 4 + overlapL
+                offset = DIMPLE.cutsite_overhang + overlapL
                 ################# Create the mutations
                 # DMS
                 dms_sequences = []
@@ -1409,12 +1412,12 @@ def generate_DMS_fragments(
                             tmpfrag_1 = (
                                     barF.seq[0: int(difference / 2)]
                                     + DIMPLE.cutsite
-                                    + "C"
-                                    + tmpseq[0:4]
-                            )  # include recoginition site and the 4 base overhang
+                                    + DIMPLE.cutsite_buffer
+                                    + tmpseq[0:DIMPLE.cutsite_overhang]
+                            )  # include recognition site and the 4 base overhang
                             tmpfrag_2 = (
-                                    tmpseq[-4:]
-                                    + "G"
+                                    tmpseq[-DIMPLE.cutsite_overhang:]
+                                    + DIMPLE.cutsite_buffer.reverse_complement()
                                     + DIMPLE.cutsite.reverse_complement()
                                     + barR.seq.reverse_complement()[
                                       0: difference - int(difference / 2)
@@ -1440,19 +1443,19 @@ def generate_DMS_fragments(
                         ):  # add barcodes to the fragments to make the oligos
                             if insert or delete:
                                 difference = (
-                                        DIMPLE.synth_len - len(sequence.seq[4:-4]) - 22
+                                        DIMPLE.synth_len - len(sequence.seq[DIMPLE.cutsite_overhang:-DIMPLE.cutsite_overhang]) - 22
                                 )  # how many bases need to be added to make oligo correct length
                                 offset = int(difference / 2)  # force it to be a integer
                                 combined_sequence = (
                                         tmpfrag_1[:offset]
                                         + tmpfrag_1[-11:]
-                                        + sequence.seq[4:-4]
+                                        + sequence.seq[DIMPLE.cutsite_overhang:-DIMPLE.cutsite_overhang]
                                         + tmpfrag_2[:11]
                                         + tmpfrag_2[-(difference - offset):]
                                 )
                             else:
                                 combined_sequence = (
-                                        tmpfrag_1 + sequence.seq[4:-4] + tmpfrag_2
+                                        tmpfrag_1 + sequence.seq[DIMPLE.cutsite_overhang:-DIMPLE.cutsite_overhang] + tmpfrag_2
                                 )
                             if (
                                     primerF not in combined_sequence

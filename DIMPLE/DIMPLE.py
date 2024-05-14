@@ -30,7 +30,7 @@ from random import randrange
 from DIMPLE.utilities import findORF
 
 import numpy as np
-from Bio import SeqIO, pairwise2
+from Bio import SeqIO, Align
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqUtils import MeltingTemp as mt
@@ -288,15 +288,23 @@ def align_genevariation(OLS):
     if not isinstance(OLS[0], DIMPLE):
         raise TypeError("Not an instance of the DIMPLE class")
     match = []
+    aligner = Align.PairwiseAligner()
+    aligner.mode = "global"
+    aligner.match_score = 2
+    aligner.mismatch_score = -1
     print("------------Finding homologous regions------------")
     # First find genes with matching sequences
     for m in range(len(OLS)):
         remlist = range(len(OLS))[m + 1 :]
         for p in remlist:
-            score = pairwise2.align.globalmx(
-                OLS[m].seq, OLS[p].seq, 2, -1, one_alignment_only=True
+            alignments = aligner.align(
+                OLS[m].seq, OLS[p].seq
             )
-            if score[0][2] / score[0][4] > 1.5:  # Threshold for a matched gene set
+            for alignment in alignments:
+                score = alignment.score
+                score_len = alignment.indices.shape[1]
+                break
+            if score / score_len > 1.5:  # Threshold for a matched gene set
                 index = [
                     x for x, geneset in enumerate(match) if m in geneset or p in geneset
                 ]  # Determine if aligned genes are in any of the previously match sets

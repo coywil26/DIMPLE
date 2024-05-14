@@ -59,7 +59,11 @@ def run():
         DIMPLE.usage = app.codon_usage
     DIMPLE.barcodeF = DIMPLE.barcodeF[int(app.barcode_start.get()):]
     DIMPLE.barcodeR = DIMPLE.barcodeR[int(app.barcode_start.get()):]
-    DIMPLE.cutsite = Seq(app.restriction_sequence.get())
+    tmp_cutsite = app.restriction_sequence.get().split('(')
+    DIMPLE.cutsite = Seq(tmp_cutsite[0])
+    DIMPLE.cutsite_buffer = Seq(tmp_cutsite[1].split(')')[0])
+    tmp_overhang = tmp_cutsite[1].split(')')[1].split('/')
+    DIMPLE.cutsite_overhang = int(tmp_overhang[1]) - int(tmp_overhang[0])
     DIMPLE.avoid_sequence = [Seq(x) for x in app.avoid_sequence.get().split(',')]
     DIMPLE.aminoacids = app.substitutions.get().split(',')
     DIMPLE.stop_codon = app.stop.get()
@@ -68,6 +72,7 @@ def run():
     DIMPLE.handle = app.handle
     DIMPLE.doublefrag = app.doublefrag
     DIMPLE.gene_primerTM = (app.melting_temp_low.get(), app.melting_temp_high.get())
+    DIMPLE.maximize_nucleotide_change = False
 
     OLS = addgene(app.geneFile)
     if app.avoid_breaksites.get():
@@ -148,7 +153,7 @@ class Application(tk.Frame):
         self.melting_temp_high.pack()
 
         tk.Label(self, text='Type IIS restriction sequence').pack()
-        self.restriction_sequence = tk.Entry(self, textvariable=tk.StringVar(self, 'CGTCTC'))
+        self.restriction_sequence = tk.Entry(self, textvariable=tk.StringVar(self, 'CGTCTC(G)1/5'))
         self.restriction_sequence.pack()
 
         tk.Label(self, text='Sequences to avoid').pack()
@@ -301,6 +306,6 @@ class Application(tk.Frame):
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.geometry('700x1000')
+    root.geometry('700x1100')
     app = Application(master=root)
     app.mainloop()

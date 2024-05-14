@@ -1110,6 +1110,7 @@ def generate_DMS_fragments(
                                 if not p:
                                     continue
                                 #TODO pick based on maximizing nucleotide changes
+                                # remove codons with only one change compared to wt_codon
                                 if DIMPLE.maximize_nucleotide_change:
                                     max_codons = [x for x in codons if sum([x[i] != wt_codon[i] for i in range(3)]) > 1]
                                     if max_codons:

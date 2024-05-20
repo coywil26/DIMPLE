@@ -1,4 +1,4 @@
-from Bio import pairwise2
+from Bio import Align
 
 def find_mutations(mutations, wt_seq, typeII_RE, typeII_RE_R, RE_gap):
     mutation_file = r"C:\Users\test.fasta"
@@ -24,8 +24,17 @@ def find_mutations(mutations, wt_seq, typeII_RE, typeII_RE_R, RE_gap):
             #codon = ''.join([x for x in name if x.isdigit()])
             tmp_split = full_row.strip().split(typeII_RE)[1][RE_gap:]  # minimum of 5 bases
             row_split = tmp_split.split(typeII_RE_R)[0][:-RE_gap]
-            s = pairwise2.align.localms(row_split, wt_seq, 2, 0, -10, -10)[0][0]
-            start = len(s)-len(s.lstrip('-'))
+            aligner = Align.PairwiseAligner()
+            aligner.mode = "local"
+            aligner.match_score = 2
+            aligner.mismatch_score = 0
+            aligner.open_gap_score = -10
+            aligner.extend_gap_score = -10
+            alignments = aligner.align(row_split, wt_seq)
+            for alignment in alignments:
+                break
+            #start = len(s)-len(s.lstrip('-'))
+            start = alignment.aligned[0][0][0]
             remainder = start % 3
             oligo_start = remainder
             for codon in range(oligo_start, len(row_split), 3):

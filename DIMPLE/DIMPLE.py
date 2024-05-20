@@ -1155,6 +1155,13 @@ def generate_DMS_fragments(
                                                 print('Unable to create synonymous mutation in neighboring codon. Continuing with single nucleotide change')
                                                 xfrag = (tmpseq[0:i] + mutation[0] + tmpseq[i + 3:])
                                                 print(xfrag)
+                                else:
+                                    mutation = np.random.choice(
+                                        codons, 1, p
+                                    )  # Pick one codon
+                                    xfrag = (
+                                            tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]
+                                    )  # Add mutation to fragment
                                 # Check each cassette for more than 2 BsmBI and 2 BsaI sites
                                 while any(
                                     [

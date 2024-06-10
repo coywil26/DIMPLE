@@ -16,10 +16,6 @@ Use align_genevariation()
 
 """
 
-# TODO: Check that this works with different length RE sites!!!!
-
-# TODO: Handle alternative type II REs, with overhangs of different lengths (e.g. BspQI, etc)
-
 import itertools
 import os
 import re
@@ -959,19 +955,22 @@ def generate_DMS_fragments(
                     )
                     skip = switch_fragmentsize(gene, idx, OLS)
                     if skip:
-                        warnings.warn(
-                            "Gene primer at the end of gene has non specific annealing. Try lengthening that primer"
-                        )
                         # if end of gene, try to extend primer to make it more specific?
-
                         if tmpr:
                             reverse += gene.complement[genefrag_R[sR - 1]]
+                            warnings.warn(
+                                "Gene primer at the end of gene has non specific annealing. Please Check this primer manually"
+                            )
+                            print(reverse)
                         if tmpf:
                             idx -= 1
                             forward += Seq(
                                 genefrag_F.reverse_complement()[sF - 1]
                             ).reverse_complement()
-
+                            warnings.warn(
+                                "Gene primer at the end of gene has non specific annealing. Please Check this primer manually"
+                            )
+                            print(forward)
                     else:
                         # Quality Control for overhangs from the same gene
                         # check_overhangs(gene, OLS)
@@ -1047,13 +1046,11 @@ def generate_DMS_fragments(
             if gene.unique_Frag[idx]:  # only for unique sequences
                 # Create gene fragments with insertions
                 count = 0
-                # TODO: remove hardcoded 4
                 tmpseq = gene.seq[
                     frag[0] - DIMPLE.cutsite_overhang - overlapL : frag[1] + DIMPLE.cutsite_overhang + overlapR
                 ].replace(
                     "-", ""
                 )  # extract sequence for oligo fragment include an extra 4 bases for BsmBI cut site and overlap
-                # TODO: rather than fixed 4 bp, adjust offset change to allow for different cutsite sizes
                 offset = DIMPLE.cutsite_overhang + overlapL
                 ################# Create the mutations
                 # DMS
@@ -1075,8 +1072,9 @@ def generate_DMS_fragments(
                     mut_positions = [x for i, x in tmp_mut_positions]
                     positions = [tmp_positions[i] for i, x in tmp_mut_positions]
                 else:
-                    mut_positions = range(offset, offset + frag[1] - frag[0] + 3, 3)
+                    mut_positions = range(offset, offset + frag[1] - frag[0], 3)
                     positions = [int((frag[0] + x + 3 - offset - DIMPLE.primerBuffer) / 3) for x in mut_positions]
+                ### Deep Mutational Scanning
                 if dms:
                     mutations = {}
                     for i in mut_positions:
@@ -1094,7 +1092,7 @@ def generate_DMS_fragments(
                                 ].split(",")
                             ]
                         else:
-                            mutations_to_make = gene.aminoacids
+                            mutations_to_make = DIMPLE.aminoacids
                         for jk in (x for x in mutations_to_make):
                             # check if synonymous and if user wants these mutations
                             if jk not in wt[0] or synonymous:
@@ -1104,7 +1102,7 @@ def generate_DMS_fragments(
                                     if aa not in wt_codon
                                 ]
                                 p = [
-                                    gene.usage[aa] for aa in codons
+                                    DIMPLE.usage[aa] for aa in codons
                                 ]  # Find probabilities but not wild type codon
                                 p = [
                                     xp if xp > 0.1 else 0 for xp in p
@@ -1259,9 +1257,10 @@ def generate_DMS_fragments(
                             for mut in mutations.keys():
                                 file.write(mut + "\n")
                                 file.write(mutations[mut] + "\n")
+                ### Scanning Insertions
                 if insert:
                     # insertion
-                    for i in range(offset, offset + frag[1] - frag[0] + 3, 3):
+                    for i in range(offset, offset + frag[1] - frag[0], 3):
                         for insert_n in insert:
                             xfrag = (
                                 tmpseq[0:i] + insert_n + tmpseq[i:]
@@ -1307,13 +1306,14 @@ def generate_DMS_fragments(
                                     description="Frag " + fragstart + "-" + fragend,
                                 )
                             )
+                ### Scanning Deletions
                 if delete:
                     # deletion
                     # TODO: failing here, for some reason. i becomes too large.
                     # fragment lengths are too high? no.
                     # overlaps are too small for larger deletion sizes. why?
 
-                    for i in range(offset, offset + frag[1] - frag[0] + 3, 3):
+                    for i in range(offset, offset + frag[1] - frag[0], 3):
                         for delete_n in delete:
                             if delete_n + i > len(tmpseq):
                                 print("overlap: ", overlapL)
@@ -1370,9 +1370,10 @@ def generate_DMS_fragments(
                                     description="Frag " + fragstart + "-" + fragend,
                                 )
                             )
+                ### Scanning Domain Insertions
                 if dis:
                     # insertion
-                    for i in range(offset, offset + frag[1] - frag[0] + 3, 3):
+                    for i in range(offset, offset + frag[1] - frag[0], 3):
                         # if idx == 0:
                         #    continue
                         xfrag = (

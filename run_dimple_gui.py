@@ -70,7 +70,7 @@ def run():
     DIMPLE.make_double = app.make_double.get()
     DIMPLE.handle = app.handle.get()
     DIMPLE.doublefrag = app.doublefrag
-    DIMPLE.gene_primerTM = (app.melting_temp_low.get(), app.melting_temp_high.get())
+    DIMPLE.gene_primerTm = (int(app.melting_temp_low.get()), int(app.melting_temp_high.get()))
     DIMPLE.maximize_nucleotide_change = app.max_mutations.get()
 
     OLS = addgene(app.geneFile)
@@ -162,11 +162,9 @@ class Application(tk.Frame):
 
         self.stop_codon = tk.Checkbutton(self, text="Include Stop Codons", variable=self.stop)
         self.stop_codon.pack()
-        self.stop_codon.select()
 
         self.synonymous_check = tk.Checkbutton(self, text="Include Synonymous Mutations", variable=self.synonymous)
         self.synonymous_check.pack()
-        self.synonymous_check.select()
 
         self.doublefrag_check = tk.Checkbutton(self, text="Double Fragments per Oligo", variable=self.doublefrag)
         self.doublefrag_check.pack()

@@ -1,15 +1,13 @@
-from Bio import Align
+from Bio import SeqIO, Align
 
-def find_mutations(mutations, wt_seq, typeII_RE, typeII_RE_R, RE_gap):
-    mutation_file = r"C:\Users\test.fasta"
-    typeII_RE = 'CGTCTC'  # I am using BsmbI
-    typeII_RE_R = 'GAGACG'
-    wt_seq = 'ATG'  # coding sequencing only
+def find_mutations(oligo_file, wt_file, typeII_RE, typeII_RE_R, RE_gap=6):
+    #typeII_RE = 'CGTCTC'  # I am using BsmbI
+    #typeII_RE_R = 'GAGACG'
+    wt_seq = next(SeqIO.parse(wt_file.replace("\\", ""), "fasta")).seq  # coding sequencing only
     mutations = []
-    RE_gap = 6
-    with open(mutation_file, 'r') as file:
+    with open(oligo_file, 'r') as file:
         row = next(file)
-        name = row.split('_')[6].strip()
+        name = row.split('_')[-1].strip()
         mutations.append('>'+name)
         for row in file:
             full_row = ''
@@ -41,10 +39,10 @@ def find_mutations(mutations, wt_seq, typeII_RE, typeII_RE_R, RE_gap):
                 if row_split[codon:codon+3] != wt_seq[start+codon:start+codon+3]:
                     mutations.append(row_split[codon:codon+3])
             if '>' in row:
-                name = row.split('_')[6].strip()
+                name = row.split('_')[-1].strip()
                 mutations.append('>'+name)
 
-    with open(r"C:\Users\test_mutations.csv", 'w') as file:
+    with open(r"test_mutations.csv", 'w') as file:
         for mut in mutations:
             file.write(mut+'\n')
 

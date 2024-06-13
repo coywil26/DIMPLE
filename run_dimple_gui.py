@@ -152,7 +152,7 @@ class Application(tk.Frame):
         self.melting_temp_high = tk.Entry(self, textvariable=tk.StringVar(self, '62'))
         self.melting_temp_high.pack()
 
-        tk.Label(self, text='Type IIS restriction sequence').pack()
+        tk.Label(self, text='Type IIS restriction sequence (Do not use N)').pack()
         self.restriction_sequence = tk.Entry(self, textvariable=tk.StringVar(self, 'CGTCTC(G)1/5'))
         self.restriction_sequence.pack()
 
@@ -243,7 +243,7 @@ class Application(tk.Frame):
         self.substitutions = tk.Entry(self, width=80, textvariable=tk.StringVar(self, "Cys,Asp,Ser,Gln,Met,Asn,Pro,Lys,Thr,Phe,Ala,Gly,Ile,Leu,His,Arg,Trp,Val,Glu,Tyr"))
         self.substitutions.pack()
 
-        self.double_it = tk.Checkbutton(self, text='Make Double Mutations', variable=self.make_double)
+        self.double_it = tk.Checkbutton(self, text='Make Double Mutations (Warning: Limit number of mutations)', variable=self.make_double)
         self.double_it.pack()
         self.double_it.deselect()
 

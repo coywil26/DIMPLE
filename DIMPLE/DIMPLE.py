@@ -272,7 +272,7 @@ class DIMPLE:
             self.breaklist = [
                 [x, x + fragsize[idx]] for idx, x in enumerate(value[:-1])
             ]  # insertion site to insertion site
-            print("New Fragment Sizes for:" + self.geneid)
+            print("New Fragment Sizes for: " + self.geneid)
             print(fragsize)
             # fragment_genes(self)
 
@@ -1164,6 +1164,7 @@ def generate_DMS_fragments(
                                             tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]
                                     )  # Add mutation to fragment
                                 # Check each cassette for more than 2 BsmBI and 2 BsaI sites
+                                avoid_count = 0
                                 while any(
                                     [
                                         (
@@ -1172,17 +1173,19 @@ def generate_DMS_fragments(
                                                 x.reverse_complement()
                                             )
                                         )
-                                        > 2
+                                        > 0
                                         for x in DIMPLE.avoid_sequence
                                     ]
                                 ):
-                                    warnings.warn(
-                                        "Found avoided sequences"
-                                    )  # change codon
                                     mutation = np.random.choice(
                                         gene.SynonymousCodons[jk], 1, p
                                     )  # Pick one codon
+                                    avoid_count += 1
                                     xfrag = tmpseq[0:i] + mutation[0] + tmpseq[i + 3 :]
+                                    if avoid_count > 10:
+                                        warnings.warn(
+                                            "Unwanted restriction site found within fragment: " + str(xfrag)
+                                        )
                                 mutations[
                                     ">"
                                     + wt[0]
@@ -1289,12 +1292,12 @@ def generate_DMS_fragments(
                                         xfrag.upper().count(x)
                                         + xfrag.upper().count(x.reverse_complement())
                                     )
-                                    > 2
+                                    > 0
                                     for x in DIMPLE.avoid_sequence
                                 ]
                             ):
-                                raise ValueError(
-                                    "Unwanted restriction site found within insertion fragment"
+                                warnings.warn(
+                                    "Unwanted restriction site found within insertion fragment: " + str(xfrag)
                                 )
                                 # not sure how to solve this issue
                                 # mutation?
@@ -1355,12 +1358,12 @@ def generate_DMS_fragments(
                                         xfrag.upper().count(x)
                                         + xfrag.upper().count(x.reverse_complement())
                                     )
-                                    > 2
+                                    > 0
                                     for x in DIMPLE.avoid_sequence
                                 ]
                             ):
-                                raise ValueError(
-                                    "Unwanted restriction site found within insertion fragment"
+                                warnings.warn(
+                                    "Unwanted restriction site found within insertion fragment: " + str(xfrag)
                                 )
                                 # xfrag = tmpseq[0:i-delete_n-3] + tmpseq[i+delete_n:] iteratively shift deletion to avoid cut sites? or mutate codons of near by aa?
                             dms_sequences.append(
@@ -1407,8 +1410,8 @@ def generate_DMS_fragments(
                                     for x in DIMPLE.avoid_sequence
                                 ]
                         ):
-                            raise ValueError(
-                                "Unwanted restriction site found within insertion fragment"
+                            warnings.warn(
+                                "Unwanted restriction site found within insertion fragment: " + str(xfrag)
                             )
                             # not sure how to solve this issue
                             # mutation?
@@ -1520,6 +1523,14 @@ def generate_DMS_fragments(
                                 print(combined_sequence.reverse_complement())
                                 print(primerR)
                                 raise Exception("primers no longer bind to oligo")
+                            if (
+                                    combined_sequence.upper().count(DIMPLE.cutsite)
+                                    + combined_sequence.upper().count(
+                                    DIMPLE.cutsite.reverse_complement()
+                                    )
+                                    != 2
+                            ):
+                                raise Exception("Oligo does not have 2 cutsites")
                             if gene.doublefrag == 0:
                                 gene.oligos.append(
                                     SeqRecord(

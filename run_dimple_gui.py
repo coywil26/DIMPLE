@@ -17,10 +17,9 @@ def run():
     if app.wDir is None:
         app.wDir = app.geneFile.rsplit('/', 1)[0]+'/'
 
-    #if any([x not in ['A', 'C', 'G', 'T', 'a', 'c', 'g', 't'] for x in app.handle.get()]):
-    #   raise ValueError('Genetic handle contains non nucleic bases')
+    if any([x not in ['A', 'C', 'G', 'T', 'a', 'c', 'g', 't'] for x in app.handle.get()]):
+       raise ValueError('Genetic handle contains non nucleic bases')
 
-    #DIMPLE.handle = app.handle.get()
     DIMPLE.synth_len = int(app.oligoLen.get())
     overlapL = int(app.overlap.get())
     overlapR = int(app.overlap.get())
@@ -69,10 +68,10 @@ def run():
     DIMPLE.stop_codon = app.stop.get()
     DIMPLE.dms = app.include_substitutions.get()
     DIMPLE.make_double = app.make_double.get()
-    DIMPLE.handle = app.handle
+    DIMPLE.handle = app.handle.get()
     DIMPLE.doublefrag = app.doublefrag
-    DIMPLE.gene_primerTM = (app.melting_temp_low.get(), app.melting_temp_high.get())
-    DIMPLE.maximize_nucleotide_change = False
+    DIMPLE.gene_primerTm = (int(app.melting_temp_low.get()), int(app.melting_temp_high.get()))
+    DIMPLE.maximize_nucleotide_change = app.max_mutations.get()
 
     OLS = addgene(app.geneFile)
     if app.avoid_breaksites.get():
@@ -121,6 +120,7 @@ class Application(tk.Frame):
         self.custom_mutations = {}
         self.doublefrag = tk.IntVar()
         self.avoid_breaksites = tk.IntVar()
+        self.max_mutations = tk.IntVar()
 
         self.wDir_file = tk.Button(self, text='Working Directory', command=self.browse_wDir)
         self.wDir_file.pack()
@@ -152,7 +152,7 @@ class Application(tk.Frame):
         self.melting_temp_high = tk.Entry(self, textvariable=tk.StringVar(self, '62'))
         self.melting_temp_high.pack()
 
-        tk.Label(self, text='Type IIS restriction sequence').pack()
+        tk.Label(self, text='Type IIS restriction sequence (Do not use N)').pack()
         self.restriction_sequence = tk.Entry(self, textvariable=tk.StringVar(self, 'CGTCTC(G)1/5'))
         self.restriction_sequence.pack()
 
@@ -162,11 +162,9 @@ class Application(tk.Frame):
 
         self.stop_codon = tk.Checkbutton(self, text="Include Stop Codons", variable=self.stop)
         self.stop_codon.pack()
-        self.stop_codon.select()
 
         self.synonymous_check = tk.Checkbutton(self, text="Include Synonymous Mutations", variable=self.synonymous)
         self.synonymous_check.pack()
-        self.synonymous_check.select()
 
         self.doublefrag_check = tk.Checkbutton(self, text="Double Fragments per Oligo", variable=self.doublefrag)
         self.doublefrag_check.pack()
@@ -238,11 +236,14 @@ class Application(tk.Frame):
         self.include_sub_check = tk.Checkbutton(self, text='Deep Mutational Scan', variable=self.include_substitutions)
         self.include_sub_check.pack()
         self.include_sub_check.deselect()
-        self.double_it = tk.Checkbutton(self, text='Make Double Mutations', variable=self.make_double)
+        self.max_mut = tk.Checkbutton(self, text='Maximize Nucleotide Change (2 or more)', variable=self.max_mutations)
+        self.max_mut.pack()
+        self.max_mut.deselect()
 
         self.substitutions = tk.Entry(self, width=80, textvariable=tk.StringVar(self, "Cys,Asp,Ser,Gln,Met,Asn,Pro,Lys,Thr,Phe,Ala,Gly,Ile,Leu,His,Arg,Trp,Val,Glu,Tyr"))
         self.substitutions.pack()
 
+        self.double_it = tk.Checkbutton(self, text='Make Double Mutations (Warning: Limit number of mutations)', variable=self.make_double)
         self.double_it.pack()
         self.double_it.deselect()
 

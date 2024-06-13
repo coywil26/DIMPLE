@@ -1,15 +1,13 @@
-from Bio import pairwise2
+from Bio import SeqIO, Align
 
-def find_mutations(mutations, wt_seq, typeII_RE, typeII_RE_R, RE_gap):
-    mutation_file = r"C:\Users\test.fasta"
-    typeII_RE = 'CGTCTC'  # I am using BsmbI
-    typeII_RE_R = 'GAGACG'
-    wt_seq = 'ATG'  # coding sequencing only
+def find_mutations(oligo_file, wt_file, typeII_RE, typeII_RE_R, RE_gap=6):
+    #typeII_RE = 'CGTCTC'  # I am using BsmbI
+    #typeII_RE_R = 'GAGACG'
+    wt_seq = next(SeqIO.parse(wt_file.replace("\\", ""), "fasta")).seq  # coding sequencing only
     mutations = []
-    RE_gap = 6
-    with open(mutation_file, 'r') as file:
+    with open(oligo_file, 'r') as file:
         row = next(file)
-        name = row.split('_')[6].strip()
+        name = row.split('_')[-1].strip()
         mutations.append('>'+name)
         for row in file:
             full_row = ''
@@ -24,18 +22,27 @@ def find_mutations(mutations, wt_seq, typeII_RE, typeII_RE_R, RE_gap):
             #codon = ''.join([x for x in name if x.isdigit()])
             tmp_split = full_row.strip().split(typeII_RE)[1][RE_gap:]  # minimum of 5 bases
             row_split = tmp_split.split(typeII_RE_R)[0][:-RE_gap]
-            s = pairwise2.align.localms(row_split, wt_seq, 2, 0, -10, -10)[0][0]
-            start = len(s)-len(s.lstrip('-'))
+            aligner = Align.PairwiseAligner()
+            aligner.mode = "local"
+            aligner.match_score = 2
+            aligner.mismatch_score = 0
+            aligner.open_gap_score = -10
+            aligner.extend_gap_score = -10
+            alignments = aligner.align(row_split, wt_seq)
+            for alignment in alignments:
+                break
+            #start = len(s)-len(s.lstrip('-'))
+            start = alignment.aligned[0][0][0]
             remainder = start % 3
             oligo_start = remainder
             for codon in range(oligo_start, len(row_split), 3):
                 if row_split[codon:codon+3] != wt_seq[start+codon:start+codon+3]:
                     mutations.append(row_split[codon:codon+3])
             if '>' in row:
-                name = row.split('_')[6].strip()
+                name = row.split('_')[-1].strip()
                 mutations.append('>'+name)
 
-    with open(r"C:\Users\test_mutations.csv", 'w') as file:
+    with open(r"test_mutations.csv", 'w') as file:
         for mut in mutations:
             file.write(mut+'\n')
 

@@ -24,11 +24,12 @@ parser.add_argument('-insertions', default=False, nargs='+', help='Enter a list 
 parser.add_argument('-deletions', default=False, nargs='+', help='Enter a list of deletions (number of nucleotides) to symmetrically delete (it will make deletions in multiples of 2x). Note you should enter multiples of 3 to maintain reading frame')
 parser.add_argument('-include_substitutions', default=False, help='If you are running DMS but only want to insert or delete AA')
 parser.add_argument('-barcode_start', default=0, help='To run DIMPLE multiple times, you will need to avoid using the same barcodes. This allows you to start at a different barcode.')
-parser.add_argument('-restriction_sequence', default='CGTCTC(G)1/5', help='Recommended using BsmBI - CGTCTC(G)1/5 or BsaI - GGTCTC(G)1/5')
+parser.add_argument('-restriction_sequence', default='CGTCTC(G)1/5', help='Recommended using BsmBI - CGTCTC(G)1/5 or BsaI - GGTCTC(G)1/5. Do not use N')
 parser.add_argument('-avoid_sequence', nargs='+', default=['CGTCTC', 'GGTCTC'], help='Avoid these sequences in the backbone - BsaI and BsmBI. For multiple sequnces use a space between inputs. Example -avoid_sequence CGTCTC GGTCTC')
 parser.add_argument('-include_stop_codons', help='Include stop codons in the list of scanning mutations.', default=False, const=True, action='store_const')
 parser.add_argument('-include_synonymous', help='Include synonymous codons in the list of scanning mutations.', default=False, const=True, action='store_const')
 parser.add_argument('-make_double', help='Make each combination of mutations within a fragment', default=False, const=True, action='store_const')
+parser.add_argument('-maximize_nucleotide_change', help='Maximize the number of nucleotide changes in each codon for easier detection in NGS', default=False, const=True, action='store_const')
 args = parser.parse_args()
 
 if args.wDir is None:
@@ -64,7 +65,7 @@ DIMPLE.cutsite_overhang = int(tmp_overhang[1]) - int(tmp_overhang[0])
 DIMPLE.avoid_sequence = [Seq(x) for x in args.avoid_sequence]
 DIMPLE.stop_codon = args.include_stop_codons
 DIMPLE.make_double = args.make_double
-DIMPLE.maximize_nucleotide_change = False
+DIMPLE.maximize_nucleotide_change = args.maximize_nucleotide_change
 
 if args.usage == 'ecoli':
     DIMPLE.usage = {

@@ -16,3 +16,4 @@ __pycache__/
 !.vscode/*.code-snippets
 
 .DS_Store
+.DS_Store

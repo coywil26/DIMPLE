@@ -1151,7 +1151,7 @@ def generate_DMS_fragments(
                                                 xfrag = (
                                                         tmpseq[0:i] + mutation[0] + synonymous_mutation[0] + tmpseq[i+6:]
                                                 )  # Add mutation to fragment
-                                                synonymous_position = 1
+                                                synonymous_position = +1
                                             else:
                                                 print('Unable to create synonymous mutation in neighboring codon. Continuing with single nucleotide change')
                                                 xfrag = (tmpseq[0:i] + mutation[0] + tmpseq[i + 3:])
@@ -1209,7 +1209,7 @@ def generate_DMS_fragments(
                                             )
                                         )
                                         + jk
-                                        ] += '+' + str(synonymous_position) + '_' + synonymous_mutation[0]
+                                        ] += str(synonymous_position) + '_' + synonymous_mutation[0]
                                 dms_sequences.append(
                                     SeqRecord(
                                         xfrag,

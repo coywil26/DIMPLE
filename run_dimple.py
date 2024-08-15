@@ -42,7 +42,7 @@ if args.wDir is None:
 #if any([x not in ['A', 'C', 'G', 'T', 'a', 'c', 'g', 't'] for x in args.handle]):
 #    raise ValueError('Genetic handle contains non-nucleic bases')
 
-#DIMPLE.handle = args.handle
+DIMPLE.handle = args.handle
 DIMPLE.synth_len = args.oligoLen
 if args.fragmentLen:
     DIMPLE.maxfrag = args.fragmentLen

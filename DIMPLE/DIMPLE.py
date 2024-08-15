@@ -950,12 +950,15 @@ def generate_DMS_fragments(
                 tmpf = check_nonspecific(forward, gene.seq, frag[1] - 3 - len(DIMPLE.cutsite_buffer) - len(DIMPLE.cutsite) + overlapR)
                 if tmpf or tmpr:
                     # swap size with another fragment
-                    if tmpf:
-                        idx = idx + 1
-                    # swap size with another fragment
                     print(
                         "------------------ Fragment size swapped due to non-specific primers ------------------"
                     )
+                    if tmpf:
+                        idx = idx + 1
+                        print("Non specific primer F: " + forward)
+                    else:
+                        print("Non specific primer R: " + reverse)
+                    # swap size with another fragment
                     skip = switch_fragmentsize(gene, idx, OLS)
                     if skip:
                         # if end of gene, try to extend primer to make it more specific?
@@ -975,7 +978,7 @@ def generate_DMS_fragments(
                     else:
                         # Quality Control for overhangs from the same gene
                         # check_overhangs(gene, OLS)
-                        DIMPLE.barcodeF.extend(compileF)  # return unused primers
+                        DIMPLE.barcodeF.extend(compileF)  # return unused barcodes
                         DIMPLE.barcodeR.extend(compileR)
                         compileF = []  # reset unused primers
                         compileR = []
@@ -986,7 +989,7 @@ def generate_DMS_fragments(
                         idx = 0
                         continue  # return to the beginning
                 elif check_overhangs(gene, OLS, overlapL, overlapR):
-                    DIMPLE.barcodeF.extend(compileF)  # return unused primers
+                    DIMPLE.barcodeF.extend(compileF)  # return unused barcodes
                     DIMPLE.barcodeR.extend(compileR)
                     compileF = []  # reset unused primers
                     compileR = []
@@ -1092,7 +1095,7 @@ def generate_DMS_fragments(
                                 ].split(",")
                             ]
                         else:
-                            mutations_to_make = DIMPLE.aminoacids
+                            mutations_to_make = gene.aminoacids
                         for jk in (x for x in mutations_to_make):
                             # check if synonymous and if user wants these mutations
                             if jk not in wt[0] or synonymous:
@@ -1102,7 +1105,7 @@ def generate_DMS_fragments(
                                     if aa not in wt_codon
                                 ]
                                 p = [
-                                    DIMPLE.usage[aa] for aa in codons
+                                    gene.usage[aa] for aa in codons
                                 ]  # Find probabilities but not wild type codon
                                 p = [
                                     xp if xp > 0.1 else 0 for xp in p
@@ -1186,6 +1189,7 @@ def generate_DMS_fragments(
                                         warnings.warn(
                                             "Unwanted restriction site found within fragment: " + str(xfrag)
                                         )
+                                        break
                                 mutations[
                                     ">"
                                     + wt[0]
@@ -1299,6 +1303,7 @@ def generate_DMS_fragments(
                                 warnings.warn(
                                     "Unwanted restriction site found within insertion fragment: " + str(xfrag)
                                 )
+                                break
                                 # not sure how to solve this issue
                                 # mutation?
                                 # xfrag = tmpseq[0:i] + mutation + tmpseq[i + 3:]
@@ -1365,6 +1370,7 @@ def generate_DMS_fragments(
                                 warnings.warn(
                                     "Unwanted restriction site found within insertion fragment: " + str(xfrag)
                                 )
+                                break
                                 # xfrag = tmpseq[0:i-delete_n-3] + tmpseq[i+delete_n:] iteratively shift deletion to avoid cut sites? or mutate codons of near by aa?
                             dms_sequences.append(
                                 SeqRecord(
@@ -1441,6 +1447,7 @@ def generate_DMS_fragments(
                             dms_sequence_list = combine_fragments(
                                 dms_sequence_list, gene.num_frag_per_oligo, gene.split
                             )
+                        len_cutsite = len(DIMPLE.cutsite) + len(DIMPLE.cutsite_buffer) + DIMPLE.cutsite_overhang
                         # determine barcodes for subpool amplification based on smallest size
                         frag_sizes = [len(xf.seq) for xf in dms_sequence_list]
                         smallest_frag = dms_sequence_list[
@@ -1450,7 +1457,7 @@ def generate_DMS_fragments(
                                 tmF < DIMPLE.primerTm[0] or tmR < DIMPLE.primerTm[0]
                         ):  # swap out barcode if tm is low
                             difference = DIMPLE.synth_len - (
-                                    len(smallest_frag) + 14
+                                    len(smallest_frag) + len_cutsite*2
                             )  # 14 bases is the length of the restriction sites with overhangs (7 bases each)
                             barF = DIMPLE.barcodeF.pop(0)
                             barR = DIMPLE.barcodeR.pop(0)
@@ -1481,7 +1488,7 @@ def generate_DMS_fragments(
                             )
                             # primers for amplifying subpools
                             offset = (
-                                    int(difference / 2) + 11
+                                    int(difference / 2) + len_cutsite
                             )  # add 11 bases for type 2 restriction
                             primerF, tmF = find_fragment_primer(tmpfrag_1, 25)
                             if len(primerF) > 21:
@@ -1499,14 +1506,14 @@ def generate_DMS_fragments(
                         ):  # add barcodes to the fragments to make the oligos
                             if insert or delete:
                                 difference = (
-                                        DIMPLE.synth_len - len(sequence.seq[DIMPLE.cutsite_overhang:-DIMPLE.cutsite_overhang]) - 22
+                                        DIMPLE.synth_len - len(sequence.seq[DIMPLE.cutsite_overhang:-DIMPLE.cutsite_overhang]) - len_cutsite*2
                                 )  # how many bases need to be added to make oligo correct length
                                 offset = int(difference / 2)  # force it to be a integer
                                 combined_sequence = (
                                         tmpfrag_1[:offset]
-                                        + tmpfrag_1[-11:]
+                                        + tmpfrag_1[-len_cutsite:]
                                         + sequence.seq[DIMPLE.cutsite_overhang:-DIMPLE.cutsite_overhang]
-                                        + tmpfrag_2[:11]
+                                        + tmpfrag_2[:len_cutsite]
                                         + tmpfrag_2[-(difference - offset):]
                                 )
                             else:
@@ -1528,7 +1535,7 @@ def generate_DMS_fragments(
                                     + combined_sequence.upper().count(
                                     DIMPLE.cutsite.reverse_complement()
                                     )
-                                    != 2
+                                    < 2
                             ):
                                 raise Exception("Oligo does not have 2 cutsites")
                             if gene.doublefrag == 0:
@@ -1603,8 +1610,13 @@ def generate_DMS_fragments(
                                                 + "C",
                                 )
                             )
-                        print("Barcodes used:" + str(count))
+                        print("Barcodes tested:" + str(count))
+                        # return unused barcodes
+                        DIMPLE.barcodeF.extend(compileF[:-2])
+                        DIMPLE.barcodeR.extend(compileR[:-2])
                         print("Barcodes Remaining:" + str(len(DIMPLE.barcodeF)))
+                        compileF = []  # reset unused primers
+                        compileR = []
             if gene.doublefrag == 1:
                 all_grouped_oligos.append(grouped_oligos)
             idx += 1

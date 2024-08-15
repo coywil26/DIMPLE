@@ -28,7 +28,7 @@ To define gene position within given fasta file, add start:# end:# to fasta desc
 
 # Running Test
 Deep Mutational Scanning with amino acid subsitution with stop codons and ecoli codon usage, GGG insertion, 3 base deletion, and BsaI golden gate: <br />
-python run_dimple.py -wDir tests -geneFile combined_fasta.fa -oligoLen 230 -DMS -usage ecoli -include_stop_codons -restriction_sequence GGTCTC -avoid_sequence GGTCTC -insertions GGG -deletions 3
+python run_dimple.py -wDir tests -geneFile combined_fasta.fa -oligoLen 230 -DMS -usage ecoli -include_stop_codons -restriction_sequence GGTCTC(G)1/5 -avoid_sequence GGTCTC -insertions GGG -deletions 3
 
 # Commandline Usage
 ```

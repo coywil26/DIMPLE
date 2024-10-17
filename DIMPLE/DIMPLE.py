@@ -1271,16 +1271,16 @@ def generate_DMS_fragments(
                                                 description="Frag " + fragstart + "-" + fragend
                                             )
                                         )
-                        # record mutation for analysis with NGS
-                        with open(
-                            os.path.join(
-                                folder.replace("\\", ""), gene.geneid + "_mutations.csv"
-                            ),
-                            "a",
-                        ) as file:
-                            for mut in mutations.keys():
-                                file.write(mut + "\n")
-                                file.write(mutations[mut] + "\n")
+                    # record mutation for analysis with NGS
+                    with open(
+                        os.path.join(
+                            folder.replace("\\", ""), gene.geneid + "_mutations.csv"
+                        ),
+                        "a",
+                    ) as file:
+                        for mut in mutations.keys():
+                            file.write(mut + "\n")
+                            file.write(mutations[mut] + "\n")
                 ### Scanning Insertions
                 if insert:
                     # insertion

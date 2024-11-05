@@ -6,6 +6,8 @@
 
 A Python script for generating oligo libraries and PCR primers for Deep Mutational Scanning library generation incorporating indel variation.
 
+Take a look at the protocol on [protocols.io](https://www.protocols.io/view/dimple-library-generation-and-assembly-protocol-rm7vzy7k8lx1) for more information on generating and assembling libraries as well.
+
 Note: This is the active repository for DIMPLE development. The archived repository containing the code used in the publication is [here](https://github.com/odcambc/DIMPLE), and is also archived at [Zenodo](https://zenodo.org/records/7574261).
 
 # Installation
@@ -45,7 +47,8 @@ Note: DIMPLE has been tested on Python version 3.12. Biopython is currently inco
 # Inputs
 
 ## Target gene file
-Targeted genes should be supplied in [fasta format](https://en.wikipedia.org/wiki/FASTA_format). To allow DIMPLE to check for nonspecific amplification, include the entire plasmid sequence of the library generation construct in the file.
+
+Targeted genes should be supplied in [FASTA format](https://en.wikipedia.org/wiki/FASTA_format). To allow DIMPLE to check for nonspecific amplification, include the entire plasmid sequence of the library generation construct in the file.
 
 The ORF can be specified in the fasta header for each target gene. If desired, the header should include the start and end positions of the gene in the plasmid, as follows:
 
@@ -144,8 +147,8 @@ python run_dimple.py -wDir tests -geneFile combined_fasta.fa -oligoLen 230 -DMS 
 
 If you found DIMPLE useful, feel free to cite the publication describing it:
 
-* Preprint: [Macdonald et al., 2022](https://doi.org/10.1101/2022.07.26.501589)
-* Published: [Macdonald et al., 2023](https://doi.org/10.1186/s13059-023-02880-6)
+- Preprint: [Macdonald et al., 2022](https://doi.org/10.1101/2022.07.26.501589)
+- Published: [Macdonald et al., 2023](https://doi.org/10.1186/s13059-023-02880-6)
 
 # License
 

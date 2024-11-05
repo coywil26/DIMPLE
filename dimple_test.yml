@@ -1,8 +1,0 @@
-name: dimple_test
-dependencies:
-  - python=3.12
-  - pip
-  - pip:
-    - numpy
-    - biopython
-    - dnacauldron

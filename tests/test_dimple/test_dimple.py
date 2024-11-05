@@ -2,11 +2,7 @@ import unittest
 import os
 from Bio.Seq import Seq
 
-import dnacauldron as dc
-
-
 from DIMPLE.DIMPLE import (
-    align_genevariation,
     print_all,
     post_qc,
     addgene,
@@ -140,13 +136,62 @@ class TestDIMPLE(unittest.TestCase):
             wDir,
         )
 
-        # Check the output
+        # Check the output. Expected output is in tests/test_dimple/expected and is compared to the output in tests/test_dimple
+        # Files:
+        # All_Oligos.fasta
+        # All_Primers.fasta
+        # Kir_DMS_Gene_Primers.fasta
+        # Kir_DMS_Oligo_Primers.fasta
+        # Kir_DMS_Oligos.fasta
+        # Kir_mutations.csv
 
-        dc.repository = SequenceRepository()
+        with open("tests/test_dimple/expected/All_Oligos.fasta", "r") as f:
+            expected_output_oligos = f.read()
 
+        with open("tests/test_dimple/All_Oligos.fasta", "r") as f:
+            output_oligos = f.read()
 
-        with open("tests/Kir_DMS_oligos.txt", "r") as f:
+        self.assertEqual(expected_output_oligos, output_oligos)
 
+        with open("tests/test_dimple/expected/All_Primers.fasta", "r") as f:
+            expected_output_primers = f.read()
+
+        with open("tests/test_dimple/All_Primers.fasta", "r") as f:
+            output_primers = f.read()
+
+        self.assertEqual(expected_output_primers, output_primers)
+
+        with open("tests/test_dimple/expected/Kir_DMS_Gene_Primers.fasta", "r") as f:
+            expected_output_gene_primers = f.read()
+
+        with open("tests/test_dimple/Kir_DMS_Gene_Primers.fasta", "r") as f:
+            output_gene_primers = f.read()
+
+        self.assertEqual(expected_output_gene_primers, output_gene_primers)
+
+        with open("tests/test_dimple/expected/Kir_DMS_Oligo_Primers.fasta", "r") as f:
+            expected_output_oligo_primers = f.read()
+
+        with open("tests/test_dimple/Kir_DMS_Oligo_Primers.fasta", "r") as f:
+            output_oligo_primers = f.read()
+
+        self.assertEqual(expected_output_oligo_primers, output_oligo_primers)
+
+        with open("tests/test_dimple/expected/Kir_DMS_Oligos.fasta", "r") as f:
+            expected_output_oligos = f.read()
+
+        with open("tests/test_dimple/Kir_DMS_Oligos.fasta", "r") as f:
+            output_oligos = f.read()
+
+        self.assertEqual(expected_output_oligos, output_oligos)
+
+        with open("tests/test_dimple/expected/Kir_mutations.csv", "r") as f:
+            expected_output_mutations = f.read()
+
+        with open("tests/test_dimple/Kir_mutations.csv", "r") as f:
+            output_mutations = f.read()
+
+        self.assertEqual(expected_output_mutations, output_mutations)
 
 
 if __name__ == "__main__":

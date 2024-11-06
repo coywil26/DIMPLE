@@ -135,13 +135,19 @@ options:
                         Maximize the number of nucleotide changes in each codon for easier detection in NGS
 ```
 
+# Example output
+
+Example output files are located in the `examples` directory.
+
 # Running test
 
-To generate a library with all amino acid subsitutions at each position, including stops, 3 codon deletions, and 3xGly insertions, with E. coli codon usage and BsaI enzyme, run the following command:
+To test DIMPLE, run the following command from the root directory:
   
   ```{bash}
-python run_dimple.py -wDir tests -geneFile combined_fasta.fa -oligoLen 230 -DMS -usage ecoli -include_stop_codons -restriction_sequence GGTCTC(G)1/5 -avoid_sequence GGTCTC -insertions GGG -deletions 3
+python -m unittest discover
 ```
+
+This should pass without any errors. If you encounter any issues, please open an issue on the GitHub repository.
 
 # Citing DIMPLE
 

@@ -22,7 +22,6 @@ import re
 import warnings
 from difflib import SequenceMatcher
 from math import ceil
-from random import randrange
 from DIMPLE.utilities import findORF
 
 import numpy as np
@@ -89,6 +88,15 @@ class DIMPLE:
         ) from exc
 
     def __init__(self, gene, start=None, end=None):
+        # Set up random seed
+        try:
+            self.random_seed
+        except AttributeError:
+            self.random_seed = None
+
+        # Set up random number generator
+        self.rng = np.random.default_rng(self.random_seed)
+
         #  Search for ORF
         try:
             DIMPLE.maxfrag  # if DIMPLE.maxfrag doesn't exist, create it
@@ -672,13 +680,13 @@ def switch_fragmentsize(gene, detectedsite, OLS):
             # Randomly shift a fragment
             count = 0
             count2 += 1
-            detectedsite = randrange(
-                1, len(gene.breaksites) - 1
+            detectedsite = gene.rng.integers(
+                1, len(gene.breaksites) - 1, dtype=int
             )  # dont change beginning or end
             if gene.fragsize[detectedsite - 1] == gene.maxfrag:
                 shift = -3
             else:
-                if randrange(0, 2):
+                if gene.rng.integers(0, 2, dtype=int):
                     shift = 3
                 else:
                     shift = -3
@@ -1122,7 +1130,7 @@ def generate_DMS_fragments(
                                     max_codons = [x for x in codons if sum([x[i] != wt_codon[i] for i in range(3)]) > 1]
                                     if max_codons:
                                         # if there are codons with more than one base change
-                                        mutation = np.random.choice(
+                                        mutation = gene.rng.choice(
                                             max_codons, 1, p
                                         )  # Pick one codon
                                         xfrag = (
@@ -1130,7 +1138,7 @@ def generate_DMS_fragments(
                                         )  # Add mutation to fragment
                                     else:
                                         # no codons with more than one base change. Creating synonymous mutation in neighboring codon.
-                                        mutation = np.random.choice(
+                                        mutation = gene.rng.choice(
                                             codons, 1, p
                                         )  # Pick one codon
                                         # find neighboring codon
@@ -1138,7 +1146,7 @@ def generate_DMS_fragments(
                                         synonymous_codons = gene.SynonymousCodons[tmp_synonymous[0]]
                                         max_synonymous = [x for x in synonymous_codons if sum([x[c] != tmpseq[i-3:i][c] for c in range(3)]) > 0]
                                         if max_synonymous and not (idx == 0 and mut_positions.index(i) == 0):
-                                            synonymous_mutation = np.random.choice(max_synonymous, 1)
+                                            synonymous_mutation = gene.rng.choice(max_synonymous, 1)
                                             xfrag = (
                                                     tmpseq[0:i-3] + synonymous_mutation[0] + mutation[0] + tmpseq[i + 3:]
                                             )  # Add mutation to fragment
@@ -1149,7 +1157,7 @@ def generate_DMS_fragments(
                                             max_synonymous = [x for x in synonymous_codons if
                                                               sum([x[c] != tmpseq[i+3:i+6][c] for c in range(3)]) > 0]
                                             if max_synonymous:
-                                                synonymous_mutation = np.random.choice(
+                                                synonymous_mutation = gene.rng.choice(
                                                     max_synonymous, 1
                                                 )
                                                 xfrag = (
@@ -1161,7 +1169,7 @@ def generate_DMS_fragments(
                                                 xfrag = (tmpseq[0:i] + mutation[0] + tmpseq[i + 3:])
                                                 print(xfrag)
                                 else:
-                                    mutation = np.random.choice(
+                                    mutation = gene.rng.choice(
                                         codons, 1, p
                                     )  # Pick one codon
                                     xfrag = (
@@ -1181,7 +1189,7 @@ def generate_DMS_fragments(
                                         for x in DIMPLE.avoid_sequence
                                     ]
                                 ):
-                                    mutation = np.random.choice(
+                                    mutation = gene.rng.choice(
                                         gene.SynonymousCodons[jk], 1, p
                                     )  # Pick one codon
                                     avoid_count += 1

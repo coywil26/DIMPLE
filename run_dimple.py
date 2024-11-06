@@ -30,6 +30,7 @@ parser.add_argument('-include_stop_codons', help='Include stop codons in the lis
 parser.add_argument('-include_synonymous', help='Include synonymous codons in the list of scanning mutations.', default=False, const=True, action='store_const')
 parser.add_argument('-make_double', help='Make each combination of mutations within a fragment', default=False, const=True, action='store_const')
 parser.add_argument('-maximize_nucleotide_change', help='Maximize the number of nucleotide changes in each codon for easier detection in NGS', default=False, const=True, action='store_const')
+parser.add_argument("-seed", help="Seed for random number generation", default=None)
 args = parser.parse_args()
 
 if args.wDir is None:
@@ -66,6 +67,11 @@ DIMPLE.avoid_sequence = [Seq(x) for x in args.avoid_sequence]
 DIMPLE.stop_codon = args.include_stop_codons
 DIMPLE.make_double = args.make_double
 DIMPLE.maximize_nucleotide_change = args.maximize_nucleotide_change
+
+if args.seed:
+    DIMPLE.random_seed = int(args.seed)
+else:
+    DIMPLE.random_seed = None
 
 if args.usage == 'ecoli':
     DIMPLE.usage = {

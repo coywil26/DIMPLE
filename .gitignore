@@ -3,8 +3,22 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 .idea/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
 
 ### VisualStudioCode ###
 .vscode/
@@ -15,5 +29,4 @@ __pycache__/
 !.vscode/extensions.json
 !.vscode/*.code-snippets
 
-.DS_Store
 .DS_Store

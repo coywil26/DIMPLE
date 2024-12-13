@@ -134,23 +134,16 @@ class Application(tk.Frame):
         self.oligoLen = tk.Entry(self, textvariable=tk.StringVar(self, '250'))
         self.oligoLen.pack()
 
-        tk.Label(self, text='Fragment Length').pack()
         self.fragmentLen = tk.Entry(self, textvariable=tk.StringVar(self, 'auto'))
-        self.fragmentLen.pack()
 
-        tk.Label(self, text='Fragment Overlap (This will change if deletions are selected)').pack()
         self.overlap = tk.Entry(self, textvariable=tk.StringVar(self, '4'))
-        self.overlap.pack()
 
         tk.Label(self, text='Barcode Start position (3000 total available)').pack()
         self.barcode_start = tk.Entry(self, textvariable=tk.StringVar(self, '0'))
         self.barcode_start.pack()
 
-        tk.Label(self, text='Melting Temperature for Gene Primers').pack()
         self.melting_temp_low = tk.Entry(self, textvariable=tk.StringVar(self, '58'))
-        self.melting_temp_low.pack()
         self.melting_temp_high = tk.Entry(self, textvariable=tk.StringVar(self, '62'))
-        self.melting_temp_high.pack()
 
         tk.Label(self, text='Type IIS restriction sequence (Do not use N)').pack()
         self.restriction_sequence = tk.Entry(self, textvariable=tk.StringVar(self, 'CGTCTC(G)1/5'))
@@ -253,9 +246,7 @@ class Application(tk.Frame):
         self.avoid_custom = tk.Checkbutton(self, text='Avoid breaksites in Custom Mutations', variable=self.avoid_breaksites)
         self.avoid_custom.pack()
 
-        tk.Label(self, text='Comma separated AA positions:').pack()
-        self.avoid_others_list = tk.Entry(self, width=60, textvariable=tk.StringVar(self, ""))
-        self.avoid_others_list.pack()
+        self.avoid_others_list =("")
 
         #self.matchSequences_check = tk.Checkbutton(self, text='Match Sequences', variable=self.matchSequences)
         #self.matchSequences_check.pack()

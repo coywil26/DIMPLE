@@ -30,7 +30,7 @@ def run():
     else:
         DIMPLE.maxfrag = int(app.oligoLen.get()) - 62 - overlapL - overlapR  # 62 allows for cutsites and barcodes
 
-    #adjust primer primerBuffer
+    # adjust primer primerBuffer
     DIMPLE.primerBuffer += overlapL
     if app.codon_usage == 'ecoli':
         DIMPLE.usage = {
@@ -134,9 +134,13 @@ class Application(tk.Frame):
         self.oligoLen = tk.Entry(self, textvariable=tk.StringVar(self, '250'))
         self.oligoLen.pack()
 
+        tk.Label(self, text='Fragment Length').pack()
         self.fragmentLen = tk.Entry(self, textvariable=tk.StringVar(self, 'auto'))
+        self.fragmentLen.pack()
 
+        tk.Label(self, text='Overlap Length').pack()
         self.overlap = tk.Entry(self, textvariable=tk.StringVar(self, '4'))
+        self.overlap.pack()
 
         tk.Label(self, text='Barcode Start position (3000 total available)').pack()
         self.barcode_start = tk.Entry(self, textvariable=tk.StringVar(self, '0'))
@@ -223,7 +227,7 @@ class Application(tk.Frame):
         self.insert_check = tk.Checkbutton(self, text="List of Insertions", variable=self.insert)
         self.insert_check.pack()
         self.insert_check.deselect()
-        self.insertions = tk.Entry(self, width=50, textvariable=tk.StringVar(self, 'GGG,GGGGGG'))
+        self.insertions = tk.Entry(self, width=50, textvariable=tk.StringVar(self, 'GGC,GGCTCT,GGCTCTGGA'))
         self.insertions.pack()
 
         self.include_sub_check = tk.Checkbutton(self, text='Deep Mutational Scan', variable=self.include_substitutions)

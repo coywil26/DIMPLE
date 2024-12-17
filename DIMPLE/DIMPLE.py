@@ -1494,8 +1494,9 @@ def generate_DMS_fragments(
                             # Number of bases trimmed is DIMPLE.cutsite_overhang (usually 4)
                             # Add dummy bases to 3' end if not enough sequence.
                             if len(tmpseq[i + delete_n :]) < DIMPLE.cutsite_overhang:
-                                buffer_length = DIMPLE.cutsite_overhang - len(tmpseq[i + delete_n :])
-                                xfrag = xfrag + "N" * buffer_length
+                                pass
+                                #buffer_length = DIMPLE.cutsite_overhang - len(tmpseq[i + delete_n :])
+                                #xfrag = xfrag + "N" * buffer_length
 
                             # Check each cassette for more than 2 BsmBI and 2 BsaI sites
 
@@ -1603,9 +1604,6 @@ def generate_DMS_fragments(
                         frag_sizes = [len(xf.seq) for xf in dms_sequence_list]
                         smallest_frag = dms_sequence_list[
                             frag_sizes.index(min(frag_sizes))
-                        ].seq
-                        largest_frag = dms_sequence_list[
-                            frag_sizes.index(max(frag_sizes))
                         ].seq
                         while (
                                 tmF < DIMPLE.primerTm[0] or tmR < DIMPLE.primerTm[0]

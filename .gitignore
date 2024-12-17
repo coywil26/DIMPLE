@@ -30,3 +30,5 @@ ipython_config.py
 !.vscode/*.code-snippets
 
 .DS_Store
+
+*.log

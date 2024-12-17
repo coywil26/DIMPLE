@@ -7,13 +7,14 @@ from DIMPLE.utilities import parse_custom_mutations
 from Bio.Seq import Seq
 import os
 import ast
+import re
 
 import logging
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
-fh = logging.FileHandler('Dimple-{:%Y-%m-%d}.log'.format(datetime.now()))
-logger.addHandler(fh)
+log_file = 'Dimple-{:%Y-%m-%d-%s}.log'.format(datetime.now())
+logger.basicConfig = logging.basicConfig(filename = log_file, level=logging.INFO)
 
 logger.info('Started')
 
@@ -56,9 +57,8 @@ DIMPLE.synth_len = args.oligoLen
 if args.fragmentLen:
     DIMPLE.maxfrag = args.fragmentLen
 else:
-    DIMPLE.maxfrag = args.oligoLen - 62 - args.overlap  # 62 allows for cutsites and barcodes
+    DIMPLE.maxfrag = args.oligoLen - 64 - args.overlap  # 64 allows for cutsites and barcodes
 
-DIMPLE.dms = args.DMS
 
 #  adjust primer primerBuffer
 DIMPLE.primerBuffer += args.overlap
@@ -66,20 +66,64 @@ DIMPLE.primerBuffer += args.overlap
 DIMPLE.avoid_sequence = args.avoid_sequence
 DIMPLE.barcodeF = DIMPLE.barcodeF[int(args.barcode_start):]
 DIMPLE.barcodeR = DIMPLE.barcodeR[int(args.barcode_start):]
-tmp_cutsite = args.restriction_sequence.split('(')
-DIMPLE.cutsite = Seq(tmp_cutsite[0])
-DIMPLE.cutsite_buffer = Seq(tmp_cutsite[1].split(')')[0])
-tmp_overhang = tmp_cutsite[1].split(')')[1].split('/')
-DIMPLE.cutsite_overhang = int(tmp_overhang[1]) - int(tmp_overhang[0])
+
+# Check whether restriction sequence specified as enzyme or sequence
+if re.match(r'[ACGT]+\([ACGT]\)\d+/\d+', args.restriction_sequence):
+    tmp_cutsite = args.restriction_sequence.split('(')
+    DIMPLE.cutsite = Seq(tmp_cutsite[0])
+    DIMPLE.cutsite_buffer = Seq(tmp_cutsite[1].split(')')[0])
+    tmp_overhang = tmp_cutsite[1].split(')')[1].split('/')
+    DIMPLE.cutsite_overhang = int(tmp_overhang[1]) - int(tmp_overhang[0])
+    if DIMPLE.cutsite == Seq('GGTCTC') and DIMPLE.cutsite_buffer == Seq('G') and DIMPLE.cutsite_overhang == 4:
+        DIMPLE.enzyme = 'BsaI'
+    elif DIMPLE.cutsite == Seq('CGTCTC') and DIMPLE.cutsite_buffer == Seq('G') and DIMPLE.cutsite_overhang == 4:
+        DIMPLE.enzyme = 'BsmBI'
+    else:
+        DIMPLE.enzyme = None
+elif args.restriction_sequence.upper() in ['BSAI', 'BSMBI']:
+    if args.restriction_sequence.upper() == 'BSAI':
+        DIMPLE.cutsite = Seq('GGTCTC')
+        DIMPLE.cutsite_buffer = Seq('G')
+        DIMPLE.cutsite_overhang = 4
+        DIMPLE.enzyme = 'BsaI'
+    else:
+        DIMPLE.cutsite = Seq('CGTCTC')
+        DIMPLE.cutsite_buffer = Seq('G')
+        DIMPLE.cutsite_overhang = 4
+        DIMPLE.enzyme = 'BsmBI'
+
+else:
+    raise ValueError(f'Restriction sequence {args.restriction_sequence} not recognized. Please check input.')
+
 DIMPLE.avoid_sequence = [Seq(x) for x in args.avoid_sequence]
+
+# Check whether restriction sequence is included in the avoid list
+if DIMPLE.cutsite not in DIMPLE.avoid_sequence:
+    DIMPLE.avoid_sequence.append(DIMPLE.cutsite)
+    warning.warn(f'Restriction sequence {DIMPLE.cutsite} was not included in the avoid list. Adding before continuing.')
+    logger.warning(f'Restriction sequence {DIMPLE.cutsite} was not included in the avoid list. Adding before continuing.')
+
+# Set up DMS parameters
+DIMPLE.dms = args.DMS
 DIMPLE.stop_codon = args.include_stop_codons
 DIMPLE.make_double = args.make_double
 DIMPLE.maximize_nucleotide_change = args.maximize_nucleotide_change
 
+if args.custom_mutations:
+    # load file with custom mutations
+    with open(args.custom_mutations) as f:
+        custom_mutations = f.readlines()
+    # parse custom mutations
+    custom_mutations = parse_custom_mutations(custom_mutations)
+else:
+    custom_mutations = None
+
+# Set up random seed
 if args.seed:
     DIMPLE.random_seed = int(args.seed)
 else:
     DIMPLE.random_seed = None
+
 
 if args.usage == 'ecoli':
     DIMPLE.usage = {
@@ -116,15 +160,6 @@ if args.deletions:
     args.deletions = [int(x) for x in args.deletions]
 if not any([DIMPLE.dms, args.insertions, args.deletions]):
     raise ValueError("Didn't select any mutations to generate")
-
-if args.custom_mutations:
-    # load file with custom mutations
-    with open(args.custom_mutations) as f:
-        custom_mutations = f.readlines()
-    # parse custom mutations
-    custom_mutations = parse_custom_mutations(custom_mutations)
-else:
-    custom_mutations = None
 
 logger.info('Generating DMS fragments')
 

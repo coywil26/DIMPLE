@@ -14,8 +14,8 @@ import logging
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
-fh = logging.FileHandler('Dimple-{:%Y-%m-%d}.log'.format(datetime.now()))
-logger.addHandler(fh)
+log_file = 'Dimple-{:%Y-%m-%d-%s}.log'.format(datetime.now())
+logger.basicConfig = logging.basicConfig(filename = log_file, level=logging.INFO)
 
 logger.info('Started')
 
@@ -66,21 +66,55 @@ def run():
         }
     else:
         DIMPLE.usage = app.codon_usage
+
+
     DIMPLE.barcodeF = DIMPLE.barcodeF[int(app.barcode_start.get()):]
     DIMPLE.barcodeR = DIMPLE.barcodeR[int(app.barcode_start.get()):]
-    tmp_cutsite = app.restriction_sequence.get().split('(')
-    DIMPLE.cutsite = Seq(tmp_cutsite[0])
-    DIMPLE.cutsite_buffer = Seq(tmp_cutsite[1].split(')')[0])
-    tmp_overhang = tmp_cutsite[1].split(')')[1].split('/')
-    DIMPLE.cutsite_overhang = int(tmp_overhang[1]) - int(tmp_overhang[0])
+
+    # Check whether restriction sequence specified as enzyme or sequence
+    if re.match(r'[ACGT]+\([ACGT]\)\d+/\d+', app.restriction_sequence.get()):
+        tmp_cutsite = app.restriction_sequence.get().split('(')
+        DIMPLE.cutsite = Seq(tmp_cutsite[0])
+        DIMPLE.cutsite_buffer = Seq(tmp_cutsite[1].split(')')[0])
+        tmp_overhang = tmp_cutsite[1].split(')')[1].split('/')
+        DIMPLE.cutsite_overhang = int(tmp_overhang[1]) - int(tmp_overhang[0])
+        if DIMPLE.cutsite == Seq('GGTCTC') and DIMPLE.cutsite_buffer == Seq('G') and DIMPLE.cutsite_overhang == 4:
+            DIMPLE.enzyme = 'BsaI'
+        elif DIMPLE.cutsite == Seq('CGTCTC') and DIMPLE.cutsite_buffer == Seq('G') and DIMPLE.cutsite_overhang == 4:
+            DIMPLE.enzyme = 'BsmBI'
+        else:
+            DIMPLE.enzyme = None
+    elif app.restriction_sequence.get().upper() in ['BSAI', 'BSMBI']:
+        if app.restriction_sequence.get().upper() == 'BSAI':
+            DIMPLE.cutsite = Seq('GGTCTC')
+            DIMPLE.cutsite_buffer = Seq('G')
+            DIMPLE.cutsite_overhang = 4
+            DIMPLE.enzyme = 'BsaI'
+        else:
+            DIMPLE.cutsite = Seq('CGTCTC')
+            DIMPLE.cutsite_buffer = Seq('G')
+            DIMPLE.cutsite_overhang = 4
+            DIMPLE.enzyme = 'BsmBI'
+    else:
+        raise ValueError(f'Restriction sequence {app.restriction_sequence.get()} not recognized. Please check input.')
+
+
     DIMPLE.avoid_sequence = [Seq(x) for x in app.avoid_sequence.get().split(',')]
+    # Check whether restriction sequence is included in the avoid list
+    if DIMPLE.cutsite not in DIMPLE.avoid_sequence:
+        DIMPLE.avoid_sequence.append(DIMPLE.cutsite)
+        warning.warn(f'Restriction sequence {DIMPLE.cutsite} was not included in the avoid list. Adding before continuing.')
+        logger.warning(f'Restriction sequence {DIMPLE.cutsite} was not included in the avoid list. Adding before continuing.')
+
     DIMPLE.aminoacids = app.substitutions.get().split(',')
     DIMPLE.stop_codon = app.stop.get()
+    DIMPLE.gene_primerTm = (int(app.melting_temp_low.get()), int(app.melting_temp_high.get()))
+
+    # Set up DMS parameters
     DIMPLE.dms = app.include_substitutions.get()
     DIMPLE.make_double = app.make_double.get()
     DIMPLE.handle = app.handle.get()
     DIMPLE.doublefrag = app.doublefrag
-    DIMPLE.gene_primerTm = (int(app.melting_temp_low.get()), int(app.melting_temp_high.get()))
     DIMPLE.maximize_nucleotide_change = app.max_mutations.get()
 
     OLS = addgene(app.geneFile)
@@ -102,6 +136,7 @@ def run():
         insertions = False
     else:
         insertions = app.insertions.get().split(',')
+
     logger.info('Generating DMS fragments')
 
     generate_DMS_fragments(OLS, overlapL, overlapR, app.synonymous.get(), app.custom_mutations, app.include_substitutions.get(), insertions, deletions, app.dis.get(), app.wDir)

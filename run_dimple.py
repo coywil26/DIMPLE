@@ -8,6 +8,16 @@ from Bio.Seq import Seq
 import os
 import ast
 
+import logging
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+fh = logging.FileHandler('Dimple-{:%Y-%m-%d}.log'.format(datetime.now()))
+logger.addHandler(fh)
+
+# TODO: log file name
+logger.info('Started')
+
 parser = argparse.ArgumentParser(description="DIMPLE: Deep Indel Missense Programmable Library Engineering")
 parser.add_argument('-wDir', help='Working directory for fasta files and output folder')
 parser.add_argument('-geneFile', required=True, help='Input all gene sequences including backbone in a fasta format. Place all in one fasta file. Name description can include start and end points (>gene1 start:1 end:2)')
@@ -16,7 +26,7 @@ parser.add_argument('-dis', default=False, help='use the handle to insert domain
 parser.add_argument('-matchSequences', action='store_const', const='match', default='nomatch', help='Find similar sequences between genes to avoid printing the same oligos multiple times. Default: No matching')
 parser.add_argument('-oligoLen', type=int, default=230, help='Synthesized oligo length')
 parser.add_argument('-fragmentLen', default=[], type=int, help='Maximum length of gene fragment')
-parser.add_argument('-overlap', default=3, type=int, help='Enter number of bases to extend each fragment for overlap. This will help with insertions close to fragment boundary')
+parser.add_argument('-overlap', default=4, type=int, help='Enter number of bases to extend each fragment for overlap. This will help with insertions close to fragment boundary')
 parser.add_argument('-DMS', action='store_const', const=True, default=False, help='Choose if you will run deep deep mutation scan')
 parser.add_argument('-custom_mutations', default=None, help='Path to file that includes custom mutations with the format position:AA')
 parser.add_argument('-usage', default='human', help='Default is "human". Or select "ecoli. Or change code"')
@@ -42,7 +52,6 @@ if args.wDir is None:
 
 #if any([x not in ['A', 'C', 'G', 'T', 'a', 'c', 'g', 't'] for x in args.handle]):
 #    raise ValueError('Genetic handle contains non-nucleic bases')
-
 DIMPLE.handle = args.handle
 DIMPLE.synth_len = args.oligoLen
 if args.fragmentLen:
@@ -118,7 +127,11 @@ if args.custom_mutations:
 else:
     custom_mutations = None
 
+logger.info('Generating DMS fragments')
+
 generate_DMS_fragments(OLS, args.overlap, args.overlap, args.include_synonymous, custom_mutations, DIMPLE.dms, args.insertions, args.deletions, args.dis, args.wDir)
 
 post_qc(OLS)
 print_all(OLS, args.wDir)
+
+logger.info('Finished')

@@ -10,6 +10,16 @@ from tkinter import messagebox
 import ast
 from io import StringIO
 
+import logging
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+fh = logging.FileHandler('Dimple-{:%Y-%m-%d}.log'.format(datetime.now()))
+logger.addHandler(fh)
+
+logger.info('Started')
+
+
 def run():
     if not any([app.delete.get(), app.insert.get(), app.include_substitutions.get(), app.dis.get()]):
         messagebox.showerror('Python Error', 'Error: You must select a mutation type.')
@@ -28,7 +38,7 @@ def run():
     if app.fragmentLen.get() != 'auto':
         DIMPLE.maxfrag = int(app.fragmentLen.get())
     else:
-        DIMPLE.maxfrag = int(app.oligoLen.get()) - 62 - overlapL - overlapR  # 62 allows for cutsites and barcodes
+        DIMPLE.maxfrag = int(app.oligoLen.get()) - 64 - overlapL - overlapR  # 64 allows for cutsites and barcodes
 
     # adjust primer primerBuffer
     DIMPLE.primerBuffer += overlapL
@@ -92,11 +102,13 @@ def run():
         insertions = False
     else:
         insertions = app.insertions.get().split(',')
+    logger.info('Generating DMS fragments')
+
     generate_DMS_fragments(OLS, overlapL, overlapR, app.synonymous.get(), app.custom_mutations, app.include_substitutions.get(), insertions, deletions, app.dis.get(), app.wDir)
 
     post_qc(OLS)
     print_all(OLS, app.wDir)
-
+    logger.info('Finished')
 
 class Application(tk.Frame):
     def __init__(self, master=None):

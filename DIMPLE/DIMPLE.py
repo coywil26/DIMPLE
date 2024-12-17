@@ -30,16 +30,18 @@ from Bio import SeqIO, Align
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqUtils import MeltingTemp as mt
-from Bio.SeqUtils import seq3
+from Bio.SeqUtils import seq3, seq1
 
 import logging
 
 # For testing
 from pydna.dseqrecord import Dseqrecord
 from pydna.amplify import pcr
-from Bio.Restriction import BsmBI
+from Bio.Restriction import BsmBI, BsaI
 
 logger = logging.getLogger(__name__)
+
+print(__name__)
 
 def addgene(genefile, start=None, end=None):
     """Generate a list of DIMPLE classes from a fasta file containing genes."""
@@ -106,14 +108,9 @@ class DIMPLE:
         ) from exc
 
     def __init__(self, gene, start=None, end=None):
-        # Set up random seed
-        try:
-            self.random_seed
-        except AttributeError:
-            self.random_seed = None
 
         # Set up random number generator
-        self.rng = np.random.default_rng(self.random_seed)
+        self.rng = np.random.default_rng(DIMPLE.random_seed)
 
         #  Search for ORF
         try:
@@ -128,7 +125,7 @@ class DIMPLE:
         self.genePrimer = []
         self.oligos = []
         self.barPrimer = []
-        self.fullGene = gene.seq
+        self.fullGene = gene.seq.upper()
         self.split = 0
         self.num_frag_per_oligo = 1
         self.doublefrag = 0
@@ -183,6 +180,8 @@ class DIMPLE:
             self.aminoacids.append("STOP")
         self.complement = {"A": "T", "C": "G", "G": "C", "T": "A"}
 
+        self.designed_variants = {}
+
 
         # First check for unwanted cutsites (BsaI sites and BsmBI sites)
         match_sites = [
@@ -233,6 +232,7 @@ class DIMPLE:
             )
         else:
             self.seq = gene.seq[start + 3 - self.primerBuffer: end + self.primerBuffer]
+        self.seq = self.seq.upper()
 
         # Determine Fragment Size and store beginning and end of each fragment
         num = int(
@@ -916,7 +916,6 @@ def generate_DMS_fragments(
     # - 'length': the number of codons changed by the variant
     # - 'hgvs': the hgvs notation for the variant
     # - 'sequence': the full sequence of the variant
-    designed_variants = [{}]
 
     # dms set to true for subsitition mutations
     # insert set to a list of insertions
@@ -1172,6 +1171,13 @@ def generate_DMS_fragments(
                         for jk in (x for x in mutations_to_make):
                             # check if synonymous and if user wants these mutations
                             if jk not in wt[0] or synonymous:
+                                if jk == wt[0]:
+                                    is_synonymous = True
+                                elif jk == "STOP":
+                                    is_stop = True
+                                else:
+                                    is_stop = False
+                                    is_synonymous = False
                                 codons = [
                                     aa
                                     for aa in gene.SynonymousCodons[jk]
@@ -1260,10 +1266,10 @@ def generate_DMS_fragments(
                                     xfrag = tmpseq[0:i] + mutation[0] + tmpseq[i + 3 :]
                                     if avoid_count > 10:
                                         warnings.warn(
-                                            "Unwanted restriction site found within fragment: " + str(xfrag)
+                                            f"Unwanted restriction site found within substitution fragment: {str(xfrag)}"
                                         )
                                         logger.error(
-                                            "Unwanted restriction site found within fragment: " + str(xfrag)
+                                            f"Unwanted restriction site found within substitution fragment: {str(xfrag)}"
                                         )
                                         break
                                 mutations[
@@ -1290,49 +1296,36 @@ def generate_DMS_fragments(
                                         )
                                         + jk
                                         ] += str(synonymous_position) + '_' + synonymous_mutation[0]
+                                oligo_id = gene.geneid + "_DMS-" + str(idx + 1) + "_" + wt[0] + str(
+                                    int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3)
+                                ) + jk
                                 dms_sequences.append(
                                     SeqRecord(
                                         xfrag,
-                                        id=gene.geneid
-                                        + "_DMS-"
-                                        + str(idx + 1)
-                                        + "_"
-                                        + wt[0]
-                                        + str(
-                                            int(
-                                                (
-                                                    frag[0]
-                                                    + i
-                                                    + 6
-                                                    - offset
-                                                    - DIMPLE.primerBuffer
-                                                )
-                                                / 3
-                                            )
-                                        )
-                                        + jk,
+                                        id=oligo_id,
                                         description="Frag " + fragstart + "-" + fragend,
                                     )
                                 )
-                                if synonymous_mutation:
+                                if is_synonymous:
                                     mutation_type = 'S'
+                                elif is_stop:
+                                    mutation_type = 'X'
                                 else:
                                     mutation_type = 'M'
-                                designed_variants.append(
-                                    {
+                                name = f'{seq1(wt[0])}{int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3)}{seq1(jk)}'
+                                gene.designed_variants[oligo_id] = {
                                         'count': 0,
                                         'pos': int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3),
                                         'mutation_type': mutation_type,
-                                        'name': f'{wt[0]}{int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3)}{jk}',
+                                        'name': name,
                                         'codon': mutation[0],
                                         'wt_codon':wt_codon,
-                                        'mutation': jk,
+                                        'mutation': seq1(jk),
                                         'length': 1,
-                                        'hgvs': f'p.({wt[0]}{int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3)}{jk})',
-                                        'sequence': xfrag,
+                                        'hgvs': f'p.({name})',
+                                        'fragment': idx + 1,
+                                        'xfrag': xfrag,
                                     }
-                                )
-
                         # if double mutations are selected then make every possible double mutation
                         if DIMPLE.make_double:
                             # select every permutation of mut_positions order doesn't matter
@@ -1378,8 +1371,30 @@ def generate_DMS_fragments(
                             file.write(mutations[mut] + "\n")
                 ### Scanning Insertions
                 if insert:
+                    insert_translations = {}
+                    for insertion_sequence in insert:
+                        if len(insertion_sequence) % 3 == 0:
+                            insert_translations[insertion_sequence] = Seq(insertion_sequence).translate()
+                        else:
+                            logger.warning(f'Insertion sequence {insertion_sequence} is not a multiple of 3. Will not translate in output.')
+                            insert_translations[insertion_sequence] = f'({insert_n})'
+
                     # insertion
                     for i in range(offset, offset + frag[1] - frag[0], 3):
+                        pos = int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3)
+                        wt_pre_codon = tmpseq[i : i + 3].upper()
+                        wt_post_codon = tmpseq[i + 3 : i + 6].upper()
+                        wt_pre_aa = [
+                            name
+                            for name, codon in gene.SynonymousCodons.items()
+                            if wt_pre_codon in codon
+                        ]
+                        wt_post_aa = [
+                            name
+                            for name, codon in gene.SynonymousCodons.items()
+                            if wt_post_codon in codon
+                        ]
+
                         for insert_n in insert:
                             xfrag = (
                                 tmpseq[0:i] + insert_n + tmpseq[i:]
@@ -1405,44 +1420,31 @@ def generate_DMS_fragments(
                                 # not sure how to solve this issue
                                 # mutation?
                                 # xfrag = tmpseq[0:i] + mutation + tmpseq[i + 3:]
+                            oligo_id = gene.geneid + "_insert-" + str(idx + 1) + "_" + insert_n + "-" + str(pos)
                             dms_sequences.append(
                                 SeqRecord(
                                     xfrag,
-                                    id=gene.geneid
-                                    + "_insert-"
-                                    + str(idx + 1)
-                                    + "_"
-                                    + insert_n
-                                    + "-"
-                                    + str(
-                                        int(
-                                            (
-                                                frag[0]
-                                                + i
-                                                + 3
-                                                - offset
-                                                - DIMPLE.primerBuffer
-                                            )
-                                            / 3
-                                        )
-                                    ),
+                                    id=oligo_id,
                                     description="Frag " + fragstart + "-" + fragend,
                                 )
                             )
-                            designed_variants.append(
-                                {
+                            # Translate insert_n
+                            insert_name = insert_translations[insert_n]
+                            name = f'{seq1(wt_pre_aa)}{pos}_{seq1(wt_post_aa)}{pos+1}_ins{insert_name}'
+                            # TODO: Insert length assumes that the insert is a multiple of 3 (i.e. codon insertions).
+                            gene.designed_variants[oligo_id] = {
                                     'count': 0,
-                                    'pos': int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3),
+                                    'pos': pos,
                                     'mutation_type': 'I',
-                                    'name': f'I{int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3)}{insert_n}',
+                                    'name': name,
                                     'codon': insert_n,
                                     'wt_codon': '',
-                                    'mutation': insert_n,
-                                    'length': 1,
-                                    'hgvs': f'p.(I{int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3)}{insert_n})',
-                                    'sequence': xfrag,
-                                }
-                                )
+                                    'mutation': f'I_{len(insert_n)//3}',
+                                    'length': f'{len(insert_n)//3}',
+                                    'hgvs': f'p.({name})',
+                                    'fragment': idx + 1,
+                                    'xfrag': xfrag
+                            }
                 ### Scanning Deletions
                 if delete:
                     # deletion
@@ -1453,7 +1455,24 @@ def generate_DMS_fragments(
                     # TODO: deletions at ends of fragments (-9 but maybe not -6 or -3) are out of frame.
 
                     for i in range(offset, offset + frag[1] - frag[0], 3):
+                        pos = int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3)
+                        # List of wt codons for each position in the range of deletion lengths
+                        wt_codons = [tmpseq[i + j : i + j + 3].upper() for j in range(0, max(delete), 3)]
+                        wt_aas = [
+                            [
+                                name
+                                for name, codon in gene.SynonymousCodons.items()
+                                if wt_codon in codon
+                            ]
+                            for wt_codon in wt_codons
+                        ]
+
                         for delete_n in delete:
+                            # Check if deletion extends beyond ORF.
+                            if pos + delete_n > len(gene.seq) / 3:
+                                logger.warning("Deletion extends beyond ORF: " + f'D{pos}_{delete_n}')
+                                pass
+                            # Check if deletion extends beyond the fragment.
                             if delete_n + i > len(tmpseq):
                                 print("overlap: ", overlapL)
                                 print("offset: ", offset)
@@ -1498,44 +1517,33 @@ def generate_DMS_fragments(
                                 )
                                 break
                                 # xfrag = tmpseq[0:i-delete_n-3] + tmpseq[i+delete_n:] iteratively shift deletion to avoid cut sites? or mutate codons of near by aa?
+                            oligo_id = gene.geneid + "_delete-" + str(idx + 1) + "_" + str(delete_n) + "-" + str(pos)
                             dms_sequences.append(
                                 SeqRecord(
                                     xfrag,
-                                    id=gene.geneid
-                                    + "_delete-"
-                                    + str(idx + 1)
-                                    + "_"
-                                    + str(delete_n)
-                                    + "-"
-                                    + str(
-                                        int(
-                                            (
-                                                frag[0]
-                                                + i
-                                                + 6
-                                                - offset
-                                                - DIMPLE.primerBuffer
-                                            )
-                                            / 3
-                                        )
-                                    ),
+                                    id=oligo_id,
                                     description="Frag " + fragstart + "-" + fragend,
                                 )
                             )
-                            designed_variants.append(
-                                {
+                            length = int(delete_n / 3)
+                            if length == 1:
+                                name = f'{seq1(wt_aas[0][0])}{pos}del'
+                            else:
+                                name = f'{seq1(wt_aas[0][0])}{pos}_{seq1(wt_aas[length-1][0])}{pos+length-1}del'
+
+                            gene.designed_variants[oligo_id] = {
                                     'count': 0,
-                                    'pos': int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3),
+                                    'pos': pos,
                                     'mutation_type': 'D',
-                                    'name': f'D{int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3)}{delete_n}',
+                                    'name': name,
                                     'codon': '',
-                                    'wt_codon': tmpseq[i:i+delete_n],
-                                    'mutation': delete_n,
-                                    'length': 1,
-                                    'hgvs': f'p.(D{int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3)}{delete_n})',
-                                    'sequence': xfrag,
+                                    'wt_codon': tmpseq[i:i+delete_n].upper(),
+                                    'mutation': f'D_{length}',
+                                    'length': length,
+                                    'hgvs': f'p.({name})',
+                                    'fragment': idx + 1,
+                                    'xfrag': xfrag,
                                 }
-                            )
                 ### Scanning Domain Insertions
                 if dis:
                     # insertion
@@ -1707,20 +1715,7 @@ def generate_DMS_fragments(
                                         description="",
                                     )
                                 )
-
-                            # Test for proper assembly of oligo into template using gene primers
-                            if not test_assembly(
-                                gene.fullGene,
-                                combined_sequence,
-                                gene.genePrimer[-1],
-                                gene.genePrimer[-2],
-                                primerF,
-                                primerR
-                            ):
-                                logger.warning(
-                                    "Oligo does not assemble with template: " + str(sequence.id)
-                                )
-                                # raise Exception("Oligo does not assemble with template.")
+                            gene.designed_variants[sequence.id]['oligo_sequence'] = combined_sequence
 
                         # Store primers for gene fragment
                         if idx_type == 0:
@@ -1896,14 +1891,12 @@ def generate_DMS_fragments(
                 "wt_codon",
                 "mutation",
                 "length",
-                "hgvs",
-                "sequence",
+                "hgvs"
             ]
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames, extrasaction='ignore')
             writer.writeheader()
-            for variant in designed_variants:
-                writer.writerow(variant)
-
+            for variant in gene.designed_variants:
+                writer.writerow(gene.designed_variants[variant])
 
         # Record finished gene for aligned genes
         finishedGenes.extend([ii])
@@ -2072,18 +2065,23 @@ def print_all(OLS, folder=""):
 
 
 def post_qc(OLS):
+    logger.info("Running post QC")
     if not isinstance(OLS[0], DIMPLE):
         raise TypeError("Not an instance of the DIMPLE class")
     # Post QC
     all_oligos = []
     all_barPrimers = []
     for obj in OLS:
-
+        logger.info(f'Running QC for {obj.geneid}')
         try:
             all_oligos.extend(obj.oligos)
             all_barPrimers.extend(obj.barPrimer)
         except AttributeError:
             print(obj.geneid + " has not been processed")
+
+        logger.info(f"Checking oligo assembly for {obj.geneid}")
+        test_final_assembly(obj)
+
 
 
     print("Running QC for barcode primer specificity")
@@ -2199,30 +2197,61 @@ def post_qc(OLS):
     else:
         print("No non-specific primers detected")
 
-def test_assembly(full_gene, oligo, gene_primer_fwd, gene_primer_rev, oligo_primer_fwd, oligo_primer_rev):
-    """Test for proper assembly of oligo into template using gene primers."""
+def test_final_assembly(gene):
+    """Test that each oligo assembles properly and contains the designed mutation."""
 
-    # Simulate PCR of template with gene primers.
+    # Check whether the enzyme is set.
+    if gene.enzyme:
+        if gene.enzyme == "BsmBI":
+            enzyme = BsmBI
+        elif gene.enzyme == "BsaI":
+            enzyme = BsaI
+        else:
+            logger.warn("Enzyme not recognized. Not performing assembly check.")
 
-    full_template = Dseqrecord(full_gene, circular=True)
-    fwd_primer = Dseqrecord(gene_primer_fwd)
-    rev_primer = Dseqrecord(gene_primer_rev)
-    template_pcr_product = Dseqrecord(pcr(fwd_primer, rev_primer, full_template))
-    cut_template_product = max(template_pcr_product.cut(BsmBI), key = len)
+    n_fragments = len(gene.genePrimer) // 2
+    full_template = Dseqrecord(gene.seq, circular=True)
 
-    # Simulate PCR of oligo with oligo primers.
-    fwd_primer = Dseqrecord(oligo_primer_fwd)
-    rev_primer = Dseqrecord(oligo_primer_rev)
-    oligo_pcr_product = Dseqrecord(pcr(fwd_primer, rev_primer, oligo))
-    try:
-        cut_oligo_product = max(oligo_pcr_product.cut(BsmBI), key = len)
-    except ValueError as error:
-        logger.error("Error with oligo: " + str(error))
-        return False
+    backbones = []
+    oligo_primer_dseqs = []
+    logger.info(f"Testing assembly for {gene.geneid}")
+    logger.info(f"Using enzyme: {gene.enzyme}")
+    logger.info(f"Number of fragments: {n_fragments}")
 
-    try:
-        (cut_oligo_product + cut_template_product).looped()
-    except TypeError:
-        return False
+    for frag in range(0, n_fragments):
+        fwd_primer = Dseqrecord(gene.genePrimer[frag * 2])
+        rev_primer = Dseqrecord(gene.genePrimer[frag * 2+1])
+        template_pcr_product = Dseqrecord(pcr(fwd_primer, rev_primer, full_template))
+        cut_template_product = max(template_pcr_product.cut(enzyme), key = len)
+        backbones.append(cut_template_product)
 
-    return True
+        fwd_oligo_primer = Dseqrecord(gene.barPrimer[frag * 2])
+        rev_oligo_primer = Dseqrecord(gene.barPrimer[frag * 2+1])
+        oligo_primer_dseqs.append((fwd_oligo_primer, rev_oligo_primer))
+
+    for variant in gene.designed_variants:
+        variant_dict = gene.designed_variants[variant]
+        # Get the fragment that the variant is in.
+        fragment = variant_dict['fragment']
+        sequence = variant_dict['xfrag']
+        oligo_sequence = variant_dict['oligo_sequence']
+        # Simulate PCR of oligo with oligo primers.
+        fwd_oligo_primer, rev_oligo_primer = oligo_primer_dseqs[fragment-1]
+        oligo_pcr_product = Dseqrecord(pcr(fwd_oligo_primer, rev_oligo_primer, oligo_sequence))
+
+        try:
+            cut_oligo_product = max(oligo_pcr_product.cut(enzyme), key = len)
+        except ValueError as error:
+            logger.error(f"Oligo cut site issue: {variant}")
+            logger.error(str(error))
+
+        try:
+            assembled = (cut_oligo_product + backbones[fragment-1]).looped()
+            if str(sequence[4:-4]) not in str(assembled.seq):
+                logger.error(f"Assembly product incorrect: {variant}.")
+                logger.error(f"Expected variant to contain: {str(sequence[4:-4])}")
+                logger.error(f"Predicted assembly product: {str(assembled.seq)}")
+
+        except TypeError as error:
+            logger.error(f"Oligo does not assemble with template: {variant}")
+            logger.error(str(error))

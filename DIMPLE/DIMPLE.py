@@ -2078,7 +2078,7 @@ def post_qc(OLS):
         except AttributeError:
             print(obj.geneid + " has not been processed")
 
-        if obj.enzyme:
+        if DIMPLE.enzyme is not None:
             logger.info(f"Checking oligo assembly for {obj.geneid}")
             test_final_assembly(obj)
         else:

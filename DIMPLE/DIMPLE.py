@@ -2203,13 +2203,17 @@ def test_final_assembly(gene):
     """Test that each oligo assembles properly and contains the designed mutation."""
 
     # Check whether the enzyme is set.
-    if gene.enzyme:
-        if gene.enzyme == "BsmBI":
+    if DIMPLE.enzyme:
+        if DIMPLE.enzyme == "BsmBI":
             enzyme = BsmBI
-        elif gene.enzyme == "BsaI":
+        elif DIMPLE.enzyme == "BsaI":
             enzyme = BsaI
         else:
             logger.warn("Enzyme not recognized. Not performing assembly check.")
+            return None
+    else:
+        logger.warn("No enzyme set. Not performing assembly check.")
+        return None
 
     n_fragments = len(gene.genePrimer) // 2
     full_template = Dseqrecord(gene.seq, circular=True)
@@ -2217,7 +2221,7 @@ def test_final_assembly(gene):
     backbones = []
     oligo_primer_dseqs = []
     logger.info(f"Testing assembly for {gene.geneid}")
-    logger.info(f"Using enzyme: {gene.enzyme}")
+    logger.info(f"Using enzyme: {DIMPLE.enzyme}")
     logger.info(f"Number of fragments: {n_fragments}")
 
     for frag in range(0, n_fragments):

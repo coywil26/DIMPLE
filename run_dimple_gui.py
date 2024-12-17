@@ -134,13 +134,9 @@ class Application(tk.Frame):
         self.oligoLen = tk.Entry(self, textvariable=tk.StringVar(self, '250'))
         self.oligoLen.pack()
 
-        tk.Label(self, text='Fragment Length').pack()
         self.fragmentLen = tk.Entry(self, textvariable=tk.StringVar(self, 'auto'))
-        self.fragmentLen.pack()
 
-        tk.Label(self, text='Overlap Length').pack()
         self.overlap = tk.Entry(self, textvariable=tk.StringVar(self, '4'))
-        self.overlap.pack()
 
         tk.Label(self, text='Barcode Start position (3000 total available)').pack()
         self.barcode_start = tk.Entry(self, textvariable=tk.StringVar(self, '0'))

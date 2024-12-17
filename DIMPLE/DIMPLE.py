@@ -468,7 +468,6 @@ def align_genevariation(OLS):
             "No redundant sequences found. Matching sequences may be too short or not aligned to reduce number of oligos synthesized"
         )
 
-
 def find_geneprimer(genefrag, start, end):
     # 3' end of primer is variable to adjust melting temperature
     # 5' end of primer is fixed, with restriction site added
@@ -863,7 +862,6 @@ def check_overhangs(gene, OLS, overlapL, overlapR):
     while True:
         detectedsites = set()  # stores matching overhangs
         for idx, y in enumerate(gene.breaklist):
-            # TODO: remove hardcoded 4 to allow different overhang lengths
             overhang_F = gene.seq[
                 y[0] - DIMPLE.cutsite_overhang - overlapL: y[0] - overlapR
             ]  # Forward overhang
@@ -1360,6 +1358,7 @@ def generate_DMS_fragments(
                                             )
                                         )
                     # record mutation for analysis with NGS
+                    # TODO: Don't append.
                     with open(
                         os.path.join(
                             folder.replace("\\", ""), gene.geneid + "_mutations.csv"
@@ -1380,6 +1379,7 @@ def generate_DMS_fragments(
                             insert_translations[insertion_sequence] = f'({insert_n})'
 
                     # insertion
+
                     for i in range(offset, offset + frag[1] - frag[0], 3):
                         pos = int((frag[0] + i + 3 - offset - DIMPLE.primerBuffer) / 3)
                         wt_pre_codon = tmpseq[i : i + 3].upper()
@@ -1431,7 +1431,7 @@ def generate_DMS_fragments(
                             # Translate insert_n
                             insert_name = insert_translations[insert_n]
                             name = f'{seq1(wt_pre_aa)}{pos}_{seq1(wt_post_aa)}{pos+1}_ins{insert_name}'
-                            # TODO: Insert length assumes that the insert is a multiple of 3 (i.e. codon insertions).
+                            # TODO: Insert length assumes that the insert is a multiple of 3 (i.e. codon insertions). Make more flexible.
                             gene.designed_variants[oligo_id] = {
                                     'count': 0,
                                     'pos': pos,
@@ -1452,9 +1452,10 @@ def generate_DMS_fragments(
                     # fragment lengths are too high? no.
                     # overlaps are too small for larger deletion sizes. why?
 
-                    # TODO: deletions at ends of fragments (-9 but maybe not -6 or -3) are out of frame.
-
-                    for i in range(offset, offset + frag[1] - frag[0], 3):
+                    # Iterate over codon boundaries in the fragment
+                    # Shifted down by 3 to avoid long deletions running into the primer binding region
+                    for i in range(offset - 3, offset + frag[1] - frag[0] - 3, 3):
+                        # Calculate the amino acid position too
                         pos = int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3)
                         # List of wt codons for each position in the range of deletion lengths
                         wt_codons = [tmpseq[i + j : i + j + 3].upper() for j in range(0, max(delete), 3)]
@@ -1680,13 +1681,13 @@ def generate_DMS_fragments(
                                     primerF not in combined_sequence
                                     or primerR.reverse_complement() not in combined_sequence
                             ):
-                                # TODO: add more information to the error message
                                 print(primerF)
                                 print(combined_sequence)
                                 print("---")
                                 print(combined_sequence.reverse_complement())
                                 print(primerR)
-                                raise Exception("primers no longer bind to oligo. ")
+                                logger.error("Primers no longer bind to oligo. Was not able to add barcode to oligo. Try adjusting fragment length or synthesis length and try again.")
+                                raise Exception("Primers no longer bind to oligo. Was not able to add barcode to oligo. Try adjusting fragment length or synthesis length and try again.")
                             if (
                                     combined_sequence.upper().count(DIMPLE.cutsite)
                                     + combined_sequence.upper().count(

@@ -1381,7 +1381,7 @@ def generate_DMS_fragments(
 
                     # insertion
                     for i in range(offset, offset + frag[1] - frag[0], 3):
-                        pos = int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3)
+                        pos = int((frag[0] + i + 3 - offset - DIMPLE.primerBuffer) / 3)
                         wt_pre_codon = tmpseq[i : i + 3].upper()
                         wt_post_codon = tmpseq[i + 3 : i + 6].upper()
                         wt_pre_aa = [

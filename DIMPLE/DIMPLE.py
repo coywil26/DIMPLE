@@ -88,14 +88,9 @@ class DIMPLE:
         ) from exc
 
     def __init__(self, gene, start=None, end=None):
-        # Set up random seed
-        try:
-            self.random_seed
-        except AttributeError:
-            self.random_seed = None
 
         # Set up random number generator
-        self.rng = np.random.default_rng(self.random_seed)
+        self.rng = np.random.default_rng(DIMPLE.random_seed)
 
         #  Search for ORF
         try:

@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 fh = logging.FileHandler('Dimple-{:%Y-%m-%d}.log'.format(datetime.now()))
 logger.addHandler(fh)
 
-# TODO: log file name
 logger.info('Started')
 
 parser = argparse.ArgumentParser(description="DIMPLE: Deep Indel Missense Programmable Library Engineering")

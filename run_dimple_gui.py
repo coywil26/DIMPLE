@@ -9,6 +9,10 @@ from tkinter import filedialog
 from tkinter import messagebox
 import ast
 from io import StringIO
+import warnings
+
+
+import re
 
 import logging
 from datetime import datetime
@@ -103,7 +107,7 @@ def run():
     # Check whether restriction sequence is included in the avoid list
     if DIMPLE.cutsite not in DIMPLE.avoid_sequence:
         DIMPLE.avoid_sequence.append(DIMPLE.cutsite)
-        warning.warn(f'Restriction sequence {DIMPLE.cutsite} was not included in the avoid list. Adding before continuing.')
+        warnings.warn(f'Restriction sequence {DIMPLE.cutsite} was not included in the avoid list. Adding before continuing.')
         logger.warning(f'Restriction sequence {DIMPLE.cutsite} was not included in the avoid list. Adding before continuing.')
 
     DIMPLE.aminoacids = app.substitutions.get().split(',')

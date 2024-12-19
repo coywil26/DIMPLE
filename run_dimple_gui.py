@@ -29,7 +29,10 @@ def run():
         messagebox.showerror('Python Error', 'Error: You must select a mutation type.')
         raise ValueError('You must select a mutation type')
     if app.wDir is None:
-        app.wDir = app.geneFile.rsplit('/', 1)[0]+'/'
+        if app.geneFile is None:
+            raise ValueError('No working directory or gene file selected. At least one must be selected.')
+        else:
+            app.wDir = app.geneFile.rsplit('/', 1)[0]+'/'
 
     if any([x not in ['A', 'C', 'G', 'T', 'a', 'c', 'g', 't'] for x in app.handle.get()]):
        raise ValueError('Genetic handle contains non nucleic bases')

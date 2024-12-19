@@ -1,7 +1,7 @@
 import sys
 import ast
 import re
-
+import os
 from DIMPLE.DIMPLE import (
     print_all,
     post_qc,
@@ -37,6 +37,9 @@ from datetime import datetime
 # Set up logging
 logger = logging.getLogger(__name__)
 log_file = "logs/DIMPLE-{:%Y-%m-%d-%s}.log".format(datetime.now())
+# If log folder does not exist, create it
+if not os.path.exists("logs"):
+    os.makedirs("logs")
 logger.basicConfig = logging.basicConfig(filename=log_file, level=logging.INFO)
 
 logger.info("Started")

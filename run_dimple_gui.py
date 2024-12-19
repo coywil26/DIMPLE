@@ -120,6 +120,8 @@ def run():
     DIMPLE.doublefrag = app.doublefrag
     DIMPLE.maximize_nucleotide_change = app.max_mutations.get()
 
+    DIMPLE.random_seed = None
+
     OLS = addgene(app.geneFile)
     if app.avoid_breaksites.get():
         OLS[0].problemsites = set(int(x) for x in app.custom_mutations.keys())

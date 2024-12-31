@@ -41,8 +41,6 @@ from Bio.Restriction import BsmBI, BsaI
 
 logger = logging.getLogger(__name__)
 
-print(__name__)
-
 def addgene(genefile, start=None, end=None):
     """Generate a list of DIMPLE classes from a fasta file containing genes."""
     print("Barcode: " + str(DIMPLE.barcodeF[0].seq))
@@ -81,6 +79,8 @@ class DIMPLE:
     def synth_len(self, value):
         self._synth_len = value
         self.maxfrag = value - self.maxfrag_offset
+
+    random_seed = 0
 
     # Shared variables for all genes
     # Number of nucleotides in synthesis length to preserve for cutsites and primers. Cutsites are

@@ -2,6 +2,8 @@ import sys
 import ast
 import re
 import os
+from pathlib import Path
+
 from DIMPLE.DIMPLE import (
     print_all,
     post_qc,

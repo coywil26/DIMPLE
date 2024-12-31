@@ -624,18 +624,25 @@ class DimpleApp(QMainWindow):
             for gene in gene_list:
                 self.output_area.append(f"Target gene: {gene.id}")
 
+                # The start position provided to DIMPLE is 0-indexed, but the
+                # positions in the fasta file are 1-indexed. Subtract 1 from the
+                # start position to get the correct start position. When printing the positions
+                # to the user, add 1 to the start position to make it 1-indexed.
+
                 if "start:" in gene.description and "end:" in gene.description:
                     start = int(gene.description.split("start:")[1].split(" ")[0]) - 1
                     end = int(gene.description.split("end:")[1].split(" ")[0])
                     orf_length = end - start
 
-                    self.output_area.append(f"Start: {start} and end: {end}")
+                    self.output_area.append(f"Start: {start + 1} and end: {end}")
                     if orf_length % 3 != 0:
                         self.output_area.append(
-                            "Warning: ORF length is not a multiple of 3."
+                            "Warning: ORF length is not a multiple of 3. Check start and end positions."
                         )
+                    else:
+                        self.output_area.append("ORF translation: " + str(gene.seq[start:end].translate()))
                 else:
-                    self.output_area.append("No start and end positions specified.")
+                    self.output_area.append("No start and end positions specified. Will attempt to detect ORF.")
 
         return gene_list
 

@@ -45,6 +45,8 @@ print(__name__)
 
 def addgene(genefile, start=None, end=None):
     """Generate a list of DIMPLE classes from a fasta file containing genes."""
+    print("Barcode: " + str(DIMPLE.barcodeF[0].seq))
+    print("Number of barcodes: " + str(len(DIMPLE.barcodeF)))
     if start is None:
         start = []
     if end is None:
@@ -59,6 +61,7 @@ def addgene(genefile, start=None, end=None):
             gene.filename = genefile.replace("\\", "")
             logger.info("Found start: " + str(start) + " and end: " + str(end))
             logger.info("Inferred ORF sequence: " + str(gene.seq[start:end]))
+            logger.info("ORF translation: " + str(gene.seq[start:end].translate()))
             tmpOLS.append(DIMPLE(gene, start, end))
         else:
             gene.filename = genefile.replace("\\", "")

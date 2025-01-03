@@ -8,6 +8,7 @@ from Bio.Seq import Seq
 import os
 import ast
 import re
+import warnings
 
 import logging
 from datetime import datetime
@@ -113,7 +114,7 @@ DIMPLE.avoid_sequence = [Seq(x) for x in args.avoid_sequence]
 # Check whether restriction sequence is included in the avoid list
 if DIMPLE.cutsite not in DIMPLE.avoid_sequence:
     DIMPLE.avoid_sequence.append(DIMPLE.cutsite)
-    warning.warn(f'Restriction sequence {DIMPLE.cutsite} was not included in the avoid list. Adding before continuing.')
+    warnings.warn(f'Restriction sequence {DIMPLE.cutsite} was not included in the avoid list. Adding before continuing.')
     logger.warning(f'Restriction sequence {DIMPLE.cutsite} was not included in the avoid list. Adding before continuing.')
 
 # Set up DMS parameters

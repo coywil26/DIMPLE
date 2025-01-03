@@ -12,11 +12,15 @@ import re
 import logging
 from datetime import datetime
 
+# Set up logging
 logger = logging.getLogger(__name__)
-log_file = 'Dimple-{:%Y-%m-%d-%s}.log'.format(datetime.now())
-logger.basicConfig = logging.basicConfig(filename = log_file, level=logging.INFO)
+log_file = "logs/DIMPLE-{:%Y-%m-%d-%s}.log".format(datetime.now())
+# If log folder does not exist, create it
+if not os.path.exists("logs"):
+    os.makedirs("logs")
+logger.basicConfig = logging.basicConfig(filename=log_file, level=logging.INFO)
 
-logger.info('Started')
+logger.info("Started logging")
 
 parser = argparse.ArgumentParser(description="DIMPLE: Deep Indel Missense Programmable Library Engineering")
 parser.add_argument('-wDir', help='Working directory for fasta files and output folder')
@@ -25,7 +29,7 @@ parser.add_argument('-handle', default='AGCGGGAGACCGGGGTCTCTGAGC', help='Genetic
 parser.add_argument('-dis', default=False, help='use the handle to insert domains at every position in POI')
 parser.add_argument('-matchSequences', action='store_const', const='match', default='nomatch', help='Find similar sequences between genes to avoid printing the same oligos multiple times. Default: No matching')
 parser.add_argument('-oligoLen', type=int, default=230, help='Synthesized oligo length')
-parser.add_argument('-fragmentLen', default=[], type=int, help='Maximum length of gene fragment')
+parser.add_argument('-fragmentLen', default=0, type=int, help='Maximum length of gene fragment')
 parser.add_argument('-overlap', default=4, type=int, help='Enter number of bases to extend each fragment for overlap. This will help with insertions close to fragment boundary')
 parser.add_argument('-DMS', action='store_const', const=True, default=False, help='Choose if you will run deep deep mutation scan')
 parser.add_argument('-custom_mutations', default=None, help='Path to file that includes custom mutations with the format position:AA')
@@ -53,15 +57,24 @@ if args.wDir is None:
 #if any([x not in ['A', 'C', 'G', 'T', 'a', 'c', 'g', 't'] for x in args.handle]):
 #    raise ValueError('Genetic handle contains non-nucleic bases')
 DIMPLE.handle = args.handle
-DIMPLE.synth_len = args.oligoLen
-if args.fragmentLen:
-    DIMPLE.maxfrag = args.fragmentLen
-else:
-    DIMPLE.maxfrag = args.oligoLen - 64 - args.overlap  # 64 allows for cutsites and barcodes
 
+
+DIMPLE.synth_len = args.oligoLen
+overlapL = int(args.overlap)
+overlapR = int(args.overlap)
+
+if args.deletions:
+    overlapR = max([int(x) for x in args.deletions]) + overlapR - 3
+
+if args.fragmentLen != 0:
+    DIMPLE.maxfrag = args.fragmentLen
+    logger.info(f'Maximum fragment length: {DIMPLE.maxfrag} based on input')
+else:
+    DIMPLE.maxfrag = args.oligoLen - 64 - overlapL - overlapR # 64 allows for cutsites and barcodes
+    logger.info(f'Maximum fragment length: {DIMPLE.maxfrag} based on oligo length and overlap: 2 * {args.overlap}')
 
 #  adjust primer primerBuffer
-DIMPLE.primerBuffer += args.overlap
+DIMPLE.primerBuffer += overlapL
 
 DIMPLE.avoid_sequence = args.avoid_sequence
 DIMPLE.barcodeF = DIMPLE.barcodeF[int(args.barcode_start):]
@@ -163,7 +176,7 @@ if not any([DIMPLE.dms, args.insertions, args.deletions]):
 
 logger.info('Generating DMS fragments')
 
-generate_DMS_fragments(OLS, args.overlap, args.overlap, args.include_synonymous, custom_mutations, DIMPLE.dms, args.insertions, args.deletions, args.dis, args.wDir)
+generate_DMS_fragments(OLS, overlapL, overlapR, args.include_synonymous, custom_mutations, DIMPLE.dms, args.insertions, args.deletions, args.dis, args.wDir)
 
 post_qc(OLS)
 print_all(OLS, args.wDir)

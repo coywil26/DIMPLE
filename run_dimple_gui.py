@@ -98,12 +98,14 @@ def run():
     overlapR = int(app.overlap.get())
     if app.delete.get():
         overlapR = max([int(x) for x in app.deletions.get().split(",")]) + overlapR - 3
+
     if app.fragmentLen.get() != "auto":
         DIMPLE.maxfrag = int(app.fragmentLen.get())
     else:
         DIMPLE.maxfrag = (
             int(app.oligoLen.get()) - 64 - overlapL - overlapR
         )  # 64 allows for cutsites and barcodes
+
     DIMPLE.gene_primerTm = (
         int(app.melting_temp_low.get()),
         int(app.melting_temp_high.get()),
@@ -231,7 +233,7 @@ def run():
             raise ValueError("Insertions contain restriction sites")
 
     # Set up random seed (option not available in GUI currently)
-    DIMPLE.random_seed = None
+    DIMPLE.random_seed = 1848
 
     # Start generating DIMPLE genes and populating OLS
     OLS = addgene(app.geneFile)
@@ -269,9 +271,13 @@ def run():
     app.output_text.insert(tk.END, "Post QC checks and saving\n")
     post_qc(OLS)
     print_all(OLS, app.wDir)
+
     logger.info("Finished")
     app.output_text.insert(tk.END, "Finished\n")
     app.output_text.insert(tk.END, f"Log file saved to {log_file}\n")
+
+    # Output all parameters to log
+
 
 
 class Application(tk.Frame):

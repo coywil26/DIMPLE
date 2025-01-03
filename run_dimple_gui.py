@@ -17,6 +17,7 @@ from tkinter import filedialog
 from tkinter import messagebox
 import ast
 from io import StringIO
+import os
 
 import re
 import warnings
@@ -24,11 +25,15 @@ import warnings
 import logging
 from datetime import datetime
 
+# Set up logging
 logger = logging.getLogger(__name__)
-log_file = "Dimple-{:%Y-%m-%d-%s}.log".format(datetime.now())
+log_file = "logs/DIMPLE-{:%Y-%m-%d-%s}.log".format(datetime.now())
+# If log folder does not exist, create it
+if not os.path.exists("logs"):
+    os.makedirs("logs")
 logger.basicConfig = logging.basicConfig(filename=log_file, level=logging.INFO)
 
-logger.info("Started")
+logger.info("Started logging")
 
 AMINO_ACIDS = [
     "Cys",
@@ -67,6 +72,12 @@ def run():
         app.output_text.insert(tk.END, "Error: You must select a mutation type.\n")
         messagebox.showerror("Python Error", "Error: You must select a mutation type.")
         raise ValueError("You must select a mutation type")
+
+    # Check if gene file is set
+    if app.geneFile is None:
+        app.output_text.insert(tk.END, "Error: No gene file selected.\n")
+        messagebox.showerror("Python Error", "Error: No gene file selected.")
+        raise ValueError("No gene file selected for input.")
 
     # Set working dir from gene file if not set
     if app.wDir is None:
@@ -126,12 +137,14 @@ def run():
             and DIMPLE.cutsite_overhang == 4
         ):
             DIMPLE.enzyme = "BsaI"
+            app.output_text.insert(tk.END, "Detected BsaI\n")
         elif (
             DIMPLE.cutsite == Seq("CGTCTC")
             and DIMPLE.cutsite_buffer == Seq("G")
             and DIMPLE.cutsite_overhang == 4
         ):
             DIMPLE.enzyme = "BsmBI"
+            app.output_text.insert(tk.END, "Detected BsmBI\n")
         else:
             DIMPLE.enzyme = None
     elif app.restriction_sequence.get().upper() in ["BSAI", "BSMBI"]:
@@ -140,33 +153,33 @@ def run():
             DIMPLE.cutsite_buffer = Seq("G")
             DIMPLE.cutsite_overhang = 4
             DIMPLE.enzyme = "BsaI"
-            app.output_text.insert(tk.END, "Detected BsaI\n")
         else:
             DIMPLE.cutsite = Seq("CGTCTC")
             DIMPLE.cutsite_buffer = Seq("G")
             DIMPLE.cutsite_overhang = 4
             DIMPLE.enzyme = "BsmBI"
-            app.output_text.insert(tk.END, "Detected BsmBI\n")
     else:
         app.output_text.insert(tk.END, "Error: Restriction sequence not recognized\n")
         raise ValueError(
             f"Restriction sequence {app.restriction_sequence.get()} not recognized. Please check input."
         )
     # Print RE sequence parameters in use
+    if DIMPLE.enzyme is not None:
+        app.output_text.insert(tk.END, f"Using restriction enzyme {DIMPLE.enzyme}\n")
     app.output_text.insert(tk.END, f"Using restriction sequence {DIMPLE.cutsite}\n")
-    app.output_text.insert(tk.END, f"Using cutsite buffer {DIMPLE.cutsite_buffer}\n")
-    app.output_text.insert(
-        tk.END, f"Using cutsite overhang {DIMPLE.cutsite_overhang}\n"
-    )
 
-    DIMPLE.avoid_sequence = [Seq(x) for x in app.avoid_sequence.get().split(",")]
+    # Check if sequences to avoid are specified
+    if app.avoid_sequence.get() == "":
+        DIMPLE.avoid_sequence = []
+    else:
+        DIMPLE.avoid_sequence = [Seq(x) for x in app.avoid_sequence.get().split(",")]
     # Check whether restriction sequence is included in the avoid list
     if DIMPLE.cutsite not in DIMPLE.avoid_sequence:
         DIMPLE.avoid_sequence.append(DIMPLE.cutsite)
         message = f"Restriction sequence {DIMPLE.cutsite} was not included in the avoid list. Adding before continuing."
         warnings.warn(message)
         logger.warning(message)
-        app.text_box.insert(tk.END, message + "\n")
+        app.output_text.insert(tk.END, message + "\n")
 
     # Set up substituion parameters
     DIMPLE.aminoacids = app.substitutions.get().split(",")
@@ -258,6 +271,7 @@ def run():
     print_all(OLS, app.wDir)
     logger.info("Finished")
     app.output_text.insert(tk.END, "Finished\n")
+    app.output_text.insert(tk.END, f"Log file saved to {log_file}\n")
 
 
 class Application(tk.Frame):

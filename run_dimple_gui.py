@@ -54,7 +54,6 @@ AMINO_ACIDS = [
 ]
 
 
-
 def run():
     # Check that a mutation type is selected
     if not any(
@@ -65,17 +64,22 @@ def run():
             app.dis.get(),
         ]
     ):
+        app.output_text.insert(tk.END, "Error: You must select a mutation type.\n")
         messagebox.showerror("Python Error", "Error: You must select a mutation type.")
         raise ValueError("You must select a mutation type")
 
     # Set working dir from gene file if not set
     if app.wDir is None:
         app.wDir = app.geneFile.rsplit("/", 1)[0] + "/"
+        app.output_text.insert(tk.END, f"Working directory set to {app.wDir}\n")
 
     if any(
         [x not in ["A", "C", "G", "T", "a", "c", "g", "t"] for x in app.handle.get()]
     ):
-        raise ValueError("Genetic handle contains non nucleic bases")
+        app.output_text.insert(
+            tk.END, "Error: Genetic handle contains non-nucleic acid bases\n"
+        )
+        raise ValueError("Genetic handle contains non-nucleic acid bases")
 
     # Set up DIMPLE parameters
     DIMPLE.synth_len = int(app.oligoLen.get())
@@ -136,26 +140,33 @@ def run():
             DIMPLE.cutsite_buffer = Seq("G")
             DIMPLE.cutsite_overhang = 4
             DIMPLE.enzyme = "BsaI"
+            app.output_text.insert(tk.END, "Detected BsaI\n")
         else:
             DIMPLE.cutsite = Seq("CGTCTC")
             DIMPLE.cutsite_buffer = Seq("G")
             DIMPLE.cutsite_overhang = 4
             DIMPLE.enzyme = "BsmBI"
+            app.output_text.insert(tk.END, "Detected BsmBI\n")
     else:
+        app.output_text.insert(tk.END, "Error: Restriction sequence not recognized\n")
         raise ValueError(
             f"Restriction sequence {app.restriction_sequence.get()} not recognized. Please check input."
         )
+    # Print RE sequence parameters in use
+    app.output_text.insert(tk.END, f"Using restriction sequence {DIMPLE.cutsite}\n")
+    app.output_text.insert(tk.END, f"Using cutsite buffer {DIMPLE.cutsite_buffer}\n")
+    app.output_text.insert(
+        tk.END, f"Using cutsite overhang {DIMPLE.cutsite_overhang}\n"
+    )
 
     DIMPLE.avoid_sequence = [Seq(x) for x in app.avoid_sequence.get().split(",")]
     # Check whether restriction sequence is included in the avoid list
     if DIMPLE.cutsite not in DIMPLE.avoid_sequence:
         DIMPLE.avoid_sequence.append(DIMPLE.cutsite)
-        warnings.warn(
-            f"Restriction sequence {DIMPLE.cutsite} was not included in the avoid list. Adding before continuing."
-        )
-        logger.warning(
-            f"Restriction sequence {DIMPLE.cutsite} was not included in the avoid list. Adding before continuing."
-        )
+        message = f"Restriction sequence {DIMPLE.cutsite} was not included in the avoid list. Adding before continuing."
+        warnings.warn(message)
+        logger.warning(message)
+        app.text_box.insert(tk.END, message + "\n")
 
     # Set up substituion parameters
     DIMPLE.aminoacids = app.substitutions.get().split(",")
@@ -173,10 +184,38 @@ def run():
         deletions = False
     else:
         deletions = [int(x) for x in app.deletions.get().split(",")]
+        # Check whether deletions maintain frame
+        if any([x % 3 != 0 for x in deletions]):
+            message = "Warning: chosen deletions will not maintain reading frame. Remember that deletions are in nucleotides, not codons."
+            app.output_text.insert(tk.END, message + "\n")
+            warnings.warn(message)
     if app.insert.get() == 0:
         insertions = False
     else:
         insertions = app.insertions.get().split(",")
+        # Check whether insertions maintain frame
+        if any([len(x) % 3 != 0 for x in insertions]):
+            message = "Warning: chosen insertions will not maintain reading frame. Remember that insertions are in nucleotides, not codons."
+            app.output_text.insert(tk.END, message + "\n")
+            warnings.warn(message)
+        # Check whether insertions contain non-nucleotide bases
+        for insertion in insertions:
+            if any(
+                [
+                    base not in ["A", "C", "G", "T", "a", "c", "g", "t"]
+                    for base in insertion
+                ]
+            ):
+                message = (
+                    f"Error: Insertions contain non-nucleic acid bases: {insertions}\n"
+                )
+                app.output_text.insert(tk.END, message)
+                raise ValueError("Insertions contain non-nucleic acid bases")
+        # Check whether insertions contain restriction sites
+        if any([str(DIMPLE.cutsite) in insertion for insertion in insertions]):
+            message = f"Error: Insertions contain restriction sites: {insertions}\n"
+            app.output_text.insert(tk.END, message)
+            raise ValueError("Insertions contain restriction sites")
 
     # Set up random seed (option not available in GUI currently)
     DIMPLE.random_seed = None
@@ -197,6 +236,7 @@ def run():
         align_genevariation(OLS)
 
     logger.info("Generating DMS fragments")
+    app.output_text.insert(tk.END, "Generating DMS fragments\n")
 
     # Generate DMS fragments
     generate_DMS_fragments(
@@ -213,10 +253,11 @@ def run():
     )
 
     # Post QC checks and saving
-
+    app.output_text.insert(tk.END, "Post QC checks and saving\n")
     post_qc(OLS)
     print_all(OLS, app.wDir)
     logger.info("Finished")
+    app.output_text.insert(tk.END, "Finished\n")
 
 
 class Application(tk.Frame):
@@ -493,7 +534,23 @@ class Application(tk.Frame):
 
         self.run = tk.Button(self, text="Run DIMPLE", command=run).pack(pady=10)
 
-        self.output = tk.Text(self, height=5, width=60).pack()
+        # Set up output box
+        # Create a frame to hold the Text widget and scrollbar
+        output_frame = tk.Frame(self)
+        output_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Create the Text widget
+        self.output_text = tk.Text(output_frame, wrap="word", height=20)
+        self.output_text.pack(side="left", fill="both", expand=True)
+
+        # Create the vertical scrollbar
+        scrollbar = tk.Scrollbar(
+            output_frame, orient="vertical", command=self.output_text.yview
+        )
+        scrollbar.pack(side="right", fill="y")
+
+        # Link the scrollbar to the Text widget
+        self.output_text.configure(yscrollcommand=scrollbar.set)
 
     def browse_wDir(self):
         self.wDir = filedialog.askdirectory(title="Select a File")
@@ -501,6 +558,7 @@ class Application(tk.Frame):
             self.wDir_file.config(
                 bg="green", activebackground="green", relief=tk.SUNKEN
             )
+            self.output_text.insert(tk.END, f"Working directory set to {self.wDir}\n")
         else:
             self.wDir = None
 
@@ -510,6 +568,7 @@ class Application(tk.Frame):
             self.gene_file.config(
                 bg="green", activebackground="green", relief=tk.SUNKEN
             )
+            self.output_text.insert(tk.END, f"Gene file set to {self.geneFile}\n")
         else:
             self.geneFile = None
 
@@ -547,6 +606,7 @@ class Application(tk.Frame):
             bg="green", activebackground="green", relief=tk.SUNKEN
         )
         self.include_substitutions.set(1)
+
 
 if __name__ == "__main__":
     root = tk.Tk()

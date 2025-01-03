@@ -10,7 +10,7 @@ from DIMPLE.DIMPLE import (
     generate_DMS_fragments,
     switch_fragmentsize,
 )
-from DIMPLE.utilities import parse_custom_mutations
+from DIMPLE.utilities import parse_custom_mutations, codon_usage
 from Bio.Seq import Seq
 import tkinter as tk
 from tkinter import filedialog
@@ -30,8 +30,33 @@ logger.basicConfig = logging.basicConfig(filename=log_file, level=logging.INFO)
 
 logger.info("Started")
 
+AMINO_ACIDS = [
+    "Cys",
+    "Asp",
+    "Ser",
+    "Gln",
+    "Met",
+    "Asn",
+    "Pro",
+    "Lys",
+    "Thr",
+    "Phe",
+    "Ala",
+    "Gly",
+    "Ile",
+    "Leu",
+    "His",
+    "Arg",
+    "Trp",
+    "Val",
+    "Glu",
+    "Tyr",
+]
+
+
 
 def run():
+    # Check that a mutation type is selected
     if not any(
         [
             app.delete.get(),
@@ -42,6 +67,8 @@ def run():
     ):
         messagebox.showerror("Python Error", "Error: You must select a mutation type.")
         raise ValueError("You must select a mutation type")
+
+    # Set working dir from gene file if not set
     if app.wDir is None:
         app.wDir = app.geneFile.rsplit("/", 1)[0] + "/"
 
@@ -50,6 +77,7 @@ def run():
     ):
         raise ValueError("Genetic handle contains non nucleic bases")
 
+    # Set up DIMPLE parameters
     DIMPLE.synth_len = int(app.oligoLen.get())
     overlapL = int(app.overlap.get())
     overlapR = int(app.overlap.get())
@@ -61,146 +89,23 @@ def run():
         DIMPLE.maxfrag = (
             int(app.oligoLen.get()) - 64 - overlapL - overlapR
         )  # 64 allows for cutsites and barcodes
+    DIMPLE.gene_primerTm = (
+        int(app.melting_temp_low.get()),
+        int(app.melting_temp_high.get()),
+    )
 
     # adjust primer primerBuffer
     DIMPLE.primerBuffer += overlapL
+
+    # Set up codon usage
     if app.codon_usage == "ecoli":
-        DIMPLE.usage = {
-            "TTT": 0.58,
-            "TTC": 0.42,
-            "TTA": 0.14,
-            "TTG": 0.13,
-            "TAT": 0.59,
-            "TAC": 0.41,
-            "TAA": 0.61,
-            "TAG": 0.09,
-            "CTT": 0.12,
-            "CTC": 0.1,
-            "CTA": 0.04,
-            "CTG": 0.47,
-            "CAT": 0.57,
-            "CAC": 0.43,
-            "CAA": 0.34,
-            "CAG": 0.66,
-            "ATT": 0.49,
-            "ATC": 0.39,
-            "ATA": 0.11,
-            "ATG": 1,
-            "AAT": 0.49,
-            "AAC": 0.51,
-            "AAA": 0.74,
-            "AAG": 0.26,
-            "GTT": 0.28,
-            "GTC": 0.2,
-            "GTA": 0.17,
-            "GTG": 0.35,
-            "GAT": 0.63,
-            "GAC": 0.37,
-            "GAA": 0.68,
-            "GAG": 0.32,
-            "TCT": 0.17,
-            "TCC": 0.15,
-            "TCA": 0.14,
-            "TCG": 0.14,
-            "TGT": 0.46,
-            "TGC": 0.54,
-            "TGA": 0.3,
-            "TGG": 1,
-            "CCT": 0.18,
-            "CCC": 0.13,
-            "CCA": 0.2,
-            "CCG": 0.49,
-            "CGT": 0.36,
-            "CGC": 0.36,
-            "CGA": 0.07,
-            "CGG": 0.11,
-            "ACT": 0.19,
-            "ACC": 0.4,
-            "ACA": 0.17,
-            "ACG": 0.25,
-            "AGT": 0.16,
-            "AGC": 0.25,
-            "AGA": 0.07,
-            "AGG": 0.04,
-            "GCT": 0.18,
-            "GCC": 0.26,
-            "GCA": 0.23,
-            "GCG": 0.33,
-            "GGT": 0.35,
-            "GGC": 0.37,
-            "GGA": 0.13,
-            "GGG": 0.15,
-        }  # E.coli codon usage table
+        DIMPLE.usage = codon_usage("ecoli")  # E.coli codon usage table
     elif app.codon_usage == "human":
-        DIMPLE.usage = {
-            "TTT": 0.45,
-            "TTC": 0.55,
-            "TTA": 0.07,
-            "TTG": 0.13,
-            "TAT": 0.43,
-            "TAC": 0.57,
-            "TAA": 0.28,
-            "TAG": 0.2,
-            "CTT": 0.13,
-            "CTC": 0.2,
-            "CTA": 0.07,
-            "CTG": 0.41,
-            "CAT": 0.41,
-            "CAC": 0.59,
-            "CAA": 0.25,
-            "CAG": 0.75,
-            "ATT": 0.36,
-            "ATC": 0.48,
-            "ATA": 0.16,
-            "ATG": 1,
-            "AAT": 0.46,
-            "AAC": 0.54,
-            "AAA": 0.42,
-            "AAG": 0.58,
-            "GTT": 0.18,
-            "GTC": 0.24,
-            "GTA": 0.11,
-            "GTG": 0.47,
-            "GAT": 0.46,
-            "GAC": 0.54,
-            "GAA": 0.42,
-            "GAG": 0.58,
-            "TCT": 0.18,
-            "TCC": 0.22,
-            "TCA": 0.15,
-            "TCG": 0.06,
-            "TGT": 0.45,
-            "TGC": 0.55,
-            "TGA": 0.52,
-            "TGG": 1,
-            "CCT": 0.28,
-            "CCC": 0.33,
-            "CCA": 0.27,
-            "CCG": 0.11,
-            "CGT": 0.08,
-            "CGC": 0.19,
-            "CGA": 0.11,
-            "CGG": 0.21,
-            "ACT": 0.24,
-            "ACC": 0.36,
-            "ACA": 0.28,
-            "ACG": 0.12,
-            "AGT": 0.15,
-            "AGC": 0.24,
-            "AGA": 0.2,
-            "AGG": 0.2,
-            "GCT": 0.26,
-            "GCC": 0.4,
-            "GCA": 0.23,
-            "GCG": 0.11,
-            "GGT": 0.16,
-            "GGC": 0.34,
-            "GGA": 0.25,
-            "GGG": 0.25,
-        }
+        DIMPLE.usage = codon_usage("human")  #
     else:
         DIMPLE.usage = app.codon_usage
 
+    # Set up barcode start
     DIMPLE.barcodeF = DIMPLE.barcodeF[int(app.barcode_start.get()) :]
     DIMPLE.barcodeR = DIMPLE.barcodeR[int(app.barcode_start.get()) :]
 
@@ -252,12 +157,9 @@ def run():
             f"Restriction sequence {DIMPLE.cutsite} was not included in the avoid list. Adding before continuing."
         )
 
+    # Set up substituion parameters
     DIMPLE.aminoacids = app.substitutions.get().split(",")
     DIMPLE.stop_codon = app.stop.get()
-    DIMPLE.gene_primerTm = (
-        int(app.melting_temp_low.get()),
-        int(app.melting_temp_high.get()),
-    )
 
     # Set up DMS parameters
     DIMPLE.dms = app.include_substitutions.get()
@@ -266,8 +168,20 @@ def run():
     DIMPLE.doublefrag = app.doublefrag
     DIMPLE.maximize_nucleotide_change = app.max_mutations.get()
 
+    # Set up indel parameters
+    if app.delete.get() == 0:
+        deletions = False
+    else:
+        deletions = [int(x) for x in app.deletions.get().split(",")]
+    if app.insert.get() == 0:
+        insertions = False
+    else:
+        insertions = app.insertions.get().split(",")
+
+    # Set up random seed (option not available in GUI currently)
     DIMPLE.random_seed = None
 
+    # Start generating DIMPLE genes and populating OLS
     OLS = addgene(app.geneFile)
     if app.avoid_breaksites.get():
         OLS[0].problemsites = set(int(x) for x in app.custom_mutations.keys())
@@ -281,17 +195,10 @@ def run():
 
     if app.matchSequences.get() == "match":
         align_genevariation(OLS)
-    if app.delete.get() == 0:
-        deletions = False
-    else:
-        deletions = [int(x) for x in app.deletions.get().split(",")]
-    if app.insert.get() == 0:
-        insertions = False
-    else:
-        insertions = app.insertions.get().split(",")
 
     logger.info("Generating DMS fragments")
 
+    # Generate DMS fragments
     generate_DMS_fragments(
         OLS,
         overlapL,
@@ -304,6 +211,8 @@ def run():
         app.dis.get(),
         app.wDir,
     )
+
+    # Post QC checks and saving
 
     post_qc(OLS)
     print_all(OLS, app.wDir)
@@ -638,7 +547,6 @@ class Application(tk.Frame):
             bg="green", activebackground="green", relief=tk.SUNKEN
         )
         self.include_substitutions.set(1)
-
 
 if __name__ == "__main__":
     root = tk.Tk()

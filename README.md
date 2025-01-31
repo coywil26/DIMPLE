@@ -1,4 +1,4 @@
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/coywil26/DIMPLE/blob/master/DIMPLE.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/coywil26/DIMPLE/blob/colab/DIMPLE.ipynb)
 
 # DIMPLE: Deep Indel Missense Programmable Library Engineering
 
@@ -14,7 +14,7 @@ Note: This is the active repository for DIMPLE development. The archived reposit
 
 ## Simple method
 
-Run DIMPLE in a [Google Colab](https://colab.research.google.com/github/coywil26/DIMPLE/blob/master/DIMPLE.ipynb) notebook (also linked above) without downloading or installing on your computer. Follow the prompts and generate a library.
+Run DIMPLE in a [Google Colab](https://colab.research.google.com/github/coywil26/DIMPLE/blob/colab/DIMPLE.ipynb) notebook (also linked above) without downloading or installing on your computer. Follow the prompts and generate a library.
 
 ## Local install
 
@@ -63,7 +63,7 @@ The start position should be the first base of the first codon, and the end posi
 
 ## Colab version
 
-Using the [Google Colab](https://colab.research.google.com/github/coywil26/DIMPLE/blob/master/DIMPLE.ipynb) notebook, follow the prompts and explanations. Also check the options below for additional usage.
+Using the [Google Colab](https://colab.research.google.com/github/coywil26/DIMPLE/blob/colab/DIMPLE.ipynb) notebook, follow the prompts and explanations. Also check the options below for additional usage.
 
 ## Local version
 
@@ -142,7 +142,7 @@ Example output files are located in the `examples` directory.
 # Running test
 
 To test DIMPLE, run the following command from the root directory:
-  
+
   ```{bash}
 python -m unittest discover
 ```

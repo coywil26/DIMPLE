@@ -1,7 +1,8 @@
-name: dimple_env
+name: dimple_gui_env
 dependencies:
   - python=3.12
   - pip
+  - pyqt5
   - pip:
     - numpy
     - biopython

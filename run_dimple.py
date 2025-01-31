@@ -7,6 +7,21 @@ from DIMPLE.utilities import parse_custom_mutations
 from Bio.Seq import Seq
 import os
 import ast
+import re
+import warnings
+
+import logging
+from datetime import datetime
+
+# Set up logging
+logger = logging.getLogger(__name__)
+log_file = "logs/DIMPLE-{:%Y-%m-%d-%s}.log".format(datetime.now())
+# If log folder does not exist, create it
+if not os.path.exists("logs"):
+    os.makedirs("logs")
+logger.basicConfig = logging.basicConfig(filename=log_file, level=logging.INFO)
+
+logger.info("Started logging")
 
 parser = argparse.ArgumentParser(description="DIMPLE: Deep Indel Missense Programmable Library Engineering")
 parser.add_argument('-wDir', help='Working directory for fasta files and output folder')
@@ -15,8 +30,8 @@ parser.add_argument('-handle', default='AGCGGGAGACCGGGGTCTCTGAGC', help='Genetic
 parser.add_argument('-dis', default=False, help='use the handle to insert domains at every position in POI')
 parser.add_argument('-matchSequences', action='store_const', const='match', default='nomatch', help='Find similar sequences between genes to avoid printing the same oligos multiple times. Default: No matching')
 parser.add_argument('-oligoLen', type=int, default=230, help='Synthesized oligo length')
-parser.add_argument('-fragmentLen', default=[], type=int, help='Maximum length of gene fragment')
-parser.add_argument('-overlap', default=3, type=int, help='Enter number of bases to extend each fragment for overlap. This will help with insertions close to fragment boundary')
+parser.add_argument('-fragmentLen', default=0, type=int, help='Maximum length of gene fragment')
+parser.add_argument('-overlap', default=4, type=int, help='Enter number of bases to extend each fragment for overlap. This will help with insertions close to fragment boundary')
 parser.add_argument('-DMS', action='store_const', const=True, default=False, help='Choose if you will run deep deep mutation scan')
 parser.add_argument('-custom_mutations', default=None, help='Path to file that includes custom mutations with the format position:AA')
 parser.add_argument('-usage', default='human', help='Default is "human". Or select "ecoli. Or change code"')
@@ -42,36 +57,87 @@ if args.wDir is None:
 
 #if any([x not in ['A', 'C', 'G', 'T', 'a', 'c', 'g', 't'] for x in args.handle]):
 #    raise ValueError('Genetic handle contains non-nucleic bases')
-
 DIMPLE.handle = args.handle
-DIMPLE.synth_len = args.oligoLen
-if args.fragmentLen:
-    DIMPLE.maxfrag = args.fragmentLen
-else:
-    DIMPLE.maxfrag = args.oligoLen - 62 - args.overlap  # 62 allows for cutsites and barcodes
 
-DIMPLE.dms = args.DMS
+
+DIMPLE.synth_len = args.oligoLen
+overlapL = int(args.overlap)
+overlapR = int(args.overlap)
+
+if args.deletions:
+    overlapR = max([int(x) for x in args.deletions]) + overlapR - 3
+
+if args.fragmentLen != 0:
+    DIMPLE.maxfrag = args.fragmentLen
+    logger.info(f'Maximum fragment length: {DIMPLE.maxfrag} based on input')
+else:
+    DIMPLE.maxfrag = args.oligoLen - 64 - overlapL - overlapR # 64 allows for cutsites and barcodes
+    logger.info(f'Maximum fragment length: {DIMPLE.maxfrag} based on oligo length and overlap: 2 * {args.overlap}')
 
 #  adjust primer primerBuffer
-DIMPLE.primerBuffer += args.overlap
+DIMPLE.primerBuffer += overlapL
 
 DIMPLE.avoid_sequence = args.avoid_sequence
 DIMPLE.barcodeF = DIMPLE.barcodeF[int(args.barcode_start):]
 DIMPLE.barcodeR = DIMPLE.barcodeR[int(args.barcode_start):]
-tmp_cutsite = args.restriction_sequence.split('(')
-DIMPLE.cutsite = Seq(tmp_cutsite[0])
-DIMPLE.cutsite_buffer = Seq(tmp_cutsite[1].split(')')[0])
-tmp_overhang = tmp_cutsite[1].split(')')[1].split('/')
-DIMPLE.cutsite_overhang = int(tmp_overhang[1]) - int(tmp_overhang[0])
+
+# Check whether restriction sequence specified as enzyme or sequence
+if re.match(r'[ACGT]+\([ACGT]\)\d+/\d+', args.restriction_sequence):
+    tmp_cutsite = args.restriction_sequence.split('(')
+    DIMPLE.cutsite = Seq(tmp_cutsite[0])
+    DIMPLE.cutsite_buffer = Seq(tmp_cutsite[1].split(')')[0])
+    tmp_overhang = tmp_cutsite[1].split(')')[1].split('/')
+    DIMPLE.cutsite_overhang = int(tmp_overhang[1]) - int(tmp_overhang[0])
+    if DIMPLE.cutsite == Seq('GGTCTC') and DIMPLE.cutsite_buffer == Seq('G') and DIMPLE.cutsite_overhang == 4:
+        DIMPLE.enzyme = 'BsaI'
+    elif DIMPLE.cutsite == Seq('CGTCTC') and DIMPLE.cutsite_buffer == Seq('G') and DIMPLE.cutsite_overhang == 4:
+        DIMPLE.enzyme = 'BsmBI'
+    else:
+        DIMPLE.enzyme = None
+elif args.restriction_sequence.upper() in ['BSAI', 'BSMBI']:
+    if args.restriction_sequence.upper() == 'BSAI':
+        DIMPLE.cutsite = Seq('GGTCTC')
+        DIMPLE.cutsite_buffer = Seq('G')
+        DIMPLE.cutsite_overhang = 4
+        DIMPLE.enzyme = 'BsaI'
+    else:
+        DIMPLE.cutsite = Seq('CGTCTC')
+        DIMPLE.cutsite_buffer = Seq('G')
+        DIMPLE.cutsite_overhang = 4
+        DIMPLE.enzyme = 'BsmBI'
+
+else:
+    raise ValueError(f'Restriction sequence {args.restriction_sequence} not recognized. Please check input.')
+
 DIMPLE.avoid_sequence = [Seq(x) for x in args.avoid_sequence]
+
+# Check whether restriction sequence is included in the avoid list
+if DIMPLE.cutsite not in DIMPLE.avoid_sequence:
+    DIMPLE.avoid_sequence.append(DIMPLE.cutsite)
+    warnings.warn(f'Restriction sequence {DIMPLE.cutsite} was not included in the avoid list. Adding before continuing.')
+    logger.warning(f'Restriction sequence {DIMPLE.cutsite} was not included in the avoid list. Adding before continuing.')
+
+# Set up DMS parameters
+DIMPLE.dms = args.DMS
 DIMPLE.stop_codon = args.include_stop_codons
 DIMPLE.make_double = args.make_double
 DIMPLE.maximize_nucleotide_change = args.maximize_nucleotide_change
 
+if args.custom_mutations:
+    # load file with custom mutations
+    with open(args.custom_mutations) as f:
+        custom_mutations = f.readlines()
+    # parse custom mutations
+    custom_mutations = parse_custom_mutations(custom_mutations)
+else:
+    custom_mutations = None
+
+# Set up random seed
 if args.seed:
     DIMPLE.random_seed = int(args.seed)
 else:
     DIMPLE.random_seed = None
+
 
 if args.usage == 'ecoli':
     DIMPLE.usage = {
@@ -109,16 +175,11 @@ if args.deletions:
 if not any([DIMPLE.dms, args.insertions, args.deletions]):
     raise ValueError("Didn't select any mutations to generate")
 
-if args.custom_mutations:
-    # load file with custom mutations
-    with open(args.custom_mutations) as f:
-        custom_mutations = f.readlines()
-    # parse custom mutations
-    custom_mutations = parse_custom_mutations(custom_mutations)
-else:
-    custom_mutations = None
+logger.info('Generating DMS fragments')
 
-generate_DMS_fragments(OLS, args.overlap, args.overlap, args.include_synonymous, custom_mutations, DIMPLE.dms, args.insertions, args.deletions, args.dis, args.wDir)
+generate_DMS_fragments(OLS, overlapL, overlapR, args.include_synonymous, custom_mutations, DIMPLE.dms, args.insertions, args.deletions, args.dis, args.wDir)
 
 post_qc(OLS)
 print_all(OLS, args.wDir)
+
+logger.info('Finished')

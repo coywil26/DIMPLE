@@ -63,7 +63,7 @@ The start position should be the first base of the first codon, and the end posi
 
 ## Colab version
 
-Using the [Google Colab](https://colab.research.google.com/github/coywil26/DIMPLE/blob/colab/DIMPLE.ipynb) notebook, follow the prompts and explanations. Also check the options below for additional usage.
+Using the [Google Colab](https://colab.research.google.com/github/coywil26/DIMPLE/blob/colab/DIMPLE.ipynb) notebook, follow the prompts and explanations. The mutation cell includes **DMS codon layout** options (`dms_codon_mode`, `dms_custom_codons`); see [DMS codon layout](#dms-codon-layout) below. Also check the options under [Command-line usage](#command-line-usage) for additional flags.
 
 ## Local version
 
@@ -78,14 +78,33 @@ Start the GUI with the following command:
 python run_dimple_gui.py
 ```
 
-![DIMPLE_GUI](DIMPLE/data/DIMPLE_GUI.png)
+![DIMPLE GUI](DIMPLE/data/DIMPL_GUI_update.png)
 
 The following are required:
 
 - Target gene file (see below for format requirements)
 - One or more of the mutations to make to the target gene
 
-Supply options, then generate library by pressing 'Run DIMPLE' button.
+Supply options, then generate the library by pressing **Run DIMPLE**. For Deep Mutational Scanning, choose a **DMS codon layout** under the DMS options (classic per–amino-acid sampling, `NNN`, `NNG`+`NNT` two pools, or custom IUPAC triplets); see [DMS codon layout](#dms-codon-layout) below.
+
+### DMS codon layout
+
+Substitution libraries: when **Deep Mutational Scan** is enabled, you can reduce the number of substitution oligos per site by using **degenerate / multiplex** codon patterns instead of drawing one codon per target amino acid.
+
+| Mode | Behavior |
+|------|----------|
+| **Per amino acid (classic)** | Default: one designed variant per amino acid (and optional stop), with codons weighted by the selected usage table. |
+| **NNN** | One pattern `NNN` per mutable codon (64 outcomes). Variant names use the pattern (e.g. `12_NNN`), not a single-letter change code. |
+| **NNG + NNT** | Two patterns per site: `NNG` and `NNT` (same role as classic “NNK” split across G vs T at the third position). |
+| **Custom** | Comma-separated 3-letter **IUPAC** DNA triplets (e.g. `NTT,NAN,GCT`). Supports `N`, `K` (G\|T), `S` (G\|C), etc., as defined in code. |
+
+**Colab / notebook:** set `dms_codon_mode` and, for `custom`, `dms_custom_codons` in the mutation-settings cell.
+
+**Command line:** `-dms_codon_mode {amino_acid,NNN,NNG_NNT,custom}` and, when using `custom`, `-dms_custom_codons "PAT1,PAT2,..."`.
+
+**Python:** set `DIMPLE.dms_codon_mode` and `DIMPLE.dms_custom_codon_patterns` (a `list` of strings) before calling `generate_DMS_fragments`.
+
+If you supply a **custom mutations** file (position-specific amino-acid lists), DIMPLE keeps the **classic per–amino-acid** path for those positions; multiplex modes apply only when that file is not used.
 
 ### Command-line usage
 
@@ -112,6 +131,10 @@ options:
                         Maximum length of gene fragment
   -overlap OVERLAP      Enter number of bases to extend each fragment for overlap. This will help with insertions close to fragment boundary
   -DMS                  Choose if you will run deep deep mutation scan
+  -dms_codon_mode {amino_acid,NNN,NNG_NNT,custom}
+                        DMS layout: classic per–amino-acid (default), NNN, NNG+NNT two pools, or custom IUPAC triplets
+  -dms_custom_codons DMS_CUSTOM_CODONS
+                        Comma-separated 3-letter IUPAC patterns when -dms_codon_mode is custom (e.g. NTT,NAN,GCT)
   -custom_mutations CUSTOM_MUTATIONS
                         Path to file that includes custom mutations with the format position:AA
   -usage USAGE          Default is "human". Or select "ecoli. Or change code"

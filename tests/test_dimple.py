@@ -10,6 +10,7 @@ from DIMPLE.DIMPLE import (
     post_qc,
     addgene,
     DIMPLE,
+    expand_iupac_codon_pattern,
     generate_DMS_fragments,
 )
 
@@ -93,6 +94,8 @@ class TestDIMPLE(unittest.TestCase):
     DIMPLE.barcodeR = DIMPLE.barcodeR[int(barcode_start) :]
 
     def setUp(self) -> None:
+        DIMPLE.dms_codon_mode = "amino_acid"
+        DIMPLE.dms_custom_codon_patterns = None
         return super().setUp()
 
     def tearDown(self) -> None:
@@ -104,6 +107,13 @@ class TestDIMPLE(unittest.TestCase):
         os.remove("tests/All_Primers.fasta")
 
         return super().tearDown()
+
+    def test_expand_iupac_codon_pattern(self):
+        self.assertEqual(len(expand_iupac_codon_pattern("NNN")), 64)
+        self.assertEqual(len(expand_iupac_codon_pattern("NNG")), 16)
+        self.assertEqual(len(expand_iupac_codon_pattern("NNT")), 16)
+        self.assertEqual(len(expand_iupac_codon_pattern("NNK")), 32)
+        self.assertIn("TGG", expand_iupac_codon_pattern("NNG"))
 
     def test_generate_oligos(self):
         # Test the generate_oligos function for DMS.

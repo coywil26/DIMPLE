@@ -45,6 +45,17 @@ parser.add_argument('-include_stop_codons', help='Include stop codons in the lis
 parser.add_argument('-include_synonymous', help='Include synonymous codons in the list of scanning mutations.', default=False, const=True, action='store_const')
 parser.add_argument('-make_double', help='Make each combination of mutations within a fragment', default=False, const=True, action='store_const')
 parser.add_argument('-maximize_nucleotide_change', help='Maximize the number of nucleotide changes in each codon for easier detection in NGS', default=False, const=True, action='store_const')
+parser.add_argument(
+    '-dms_codon_mode',
+    default='amino_acid',
+    choices=['amino_acid', 'NNN', 'NNG_NNT', 'custom'],
+    help='DMS substitutions: default per-amino-acid codons; NNN or NNG_NNT (NNG+NNT two pools) for multiplex; custom uses -dms_custom_codons.',
+)
+parser.add_argument(
+    '-dms_custom_codons',
+    default='',
+    help='Comma-separated 3-letter IUPAC DNA patterns when -dms_codon_mode custom (e.g. NTT,NAN,GCT).',
+)
 parser.add_argument("-seed", help="Seed for random number generation", default=None)
 args = parser.parse_args()
 
@@ -122,6 +133,13 @@ DIMPLE.dms = args.DMS
 DIMPLE.stop_codon = args.include_stop_codons
 DIMPLE.make_double = args.make_double
 DIMPLE.maximize_nucleotide_change = args.maximize_nucleotide_change
+DIMPLE.dms_codon_mode = args.dms_codon_mode
+if args.dms_codon_mode == 'custom':
+    DIMPLE.dms_custom_codon_patterns = [
+        x.strip().upper() for x in args.dms_custom_codons.split(',') if x.strip()
+    ]
+else:
+    DIMPLE.dms_custom_codon_patterns = None
 
 if args.custom_mutations:
     # load file with custom mutations

@@ -81,6 +81,9 @@ class DIMPLE:
         self.maxfrag = value - self.maxfrag_offset
 
     random_seed = 0
+    # DMS layout: 'amino_acid' (default), 'NNN', 'NNG_NNT' (two pools per site), or 'custom'
+    dms_codon_mode = "amino_acid"
+    dms_custom_codon_patterns = None  # list[str], e.g. ["NTT", "NAN"] when dms_codon_mode == "custom"
 
     # Shared variables for all genes
     # Number of nucleotides in synthesis length to preserve for cutsites and primers. Cutsites are
@@ -899,6 +902,82 @@ def check_overhangs(gene, OLS, overlapL, overlapR):
     return switched
 
 
+_IUPAC_DNA_MAP = {
+    "A": ("A",),
+    "C": ("C",),
+    "G": ("G",),
+    "T": ("T",),
+    "N": ("A", "C", "G", "T"),
+    "S": ("G", "C"),
+    "R": ("A", "G"),
+    "Y": ("C", "T"),
+    "K": ("G", "T"),
+    "M": ("A", "C"),
+    "W": ("A", "T"),
+    "B": ("C", "G", "T"),
+    "D": ("A", "G", "T"),
+    "H": ("A", "C", "T"),
+    "V": ("A", "C", "G"),
+}
+
+
+def expand_iupac_codon_pattern(pattern):
+    """Expand a 3-letter IUPAC DNA codon pattern into concrete ATGC triplets."""
+    p = pattern.strip().upper()
+    if len(p) != 3:
+        raise ValueError(f"DMS codon pattern must be length 3, got {pattern!r}")
+    try:
+        opts = [_IUPAC_DNA_MAP[b] for b in p]
+    except KeyError as exc:
+        raise ValueError(f"Invalid IUPAC DNA in codon pattern {pattern!r}") from exc
+    return ["".join(t) for t in itertools.product(*opts)]
+
+
+def _dms_degenerate_pattern_list(custom_mutations):
+    """Return a list of IUPAC codon patterns, or None to use per-amino-acid codon sampling."""
+    if custom_mutations:
+        return None
+    mode = getattr(DIMPLE, "dms_codon_mode", "amino_acid") or "amino_acid"
+    if mode == "amino_acid":
+        return None
+    if mode == "NNN":
+        return ["NNN"]
+    if mode == "NNG_NNT":
+        return ["NNG", "NNT"]
+    if mode == "custom":
+        pats = getattr(DIMPLE, "dms_custom_codon_patterns", None) or []
+        if not pats:
+            raise ValueError(
+                "dms_codon_mode is 'custom' but dms_custom_codon_patterns is empty. "
+                "Set DIMPLE.dms_custom_codon_patterns to a list of 3-letter IUPAC patterns."
+            )
+        return [str(x).strip().upper() for x in pats if str(x).strip()]
+    raise ValueError(
+        f"Unknown dms_codon_mode {mode!r}; use 'amino_acid', 'NNN', 'NNG_NNT', or 'custom'."
+    )
+
+
+def _xfrag_restriction_hits(xfrag):
+    return any(
+        (xfrag.upper().count(x) + xfrag.upper().count(x.reverse_complement())) > 0
+        for x in DIMPLE.avoid_sequence
+    )
+
+
+def _warn_degenerate_pattern_restrictions(tmpseq, i, pattern):
+    """Warn if any concrete expansion of pattern creates an avoided site in this fragment context."""
+    for tri in expand_iupac_codon_pattern(pattern):
+        xf = tmpseq[0:i] + Seq(tri) + tmpseq[i + 3 :]
+        if _xfrag_restriction_hits(xf):
+            logger.warning(
+                "DMS pattern %s: concrete triplet %s can create an avoided restriction site "
+                "in this fragment context.",
+                pattern,
+                tri,
+            )
+            return
+
+
 def generate_DMS_fragments(
     OLS, overlapL, overlapR, synonymous, custom_mutations, dms=True, insert=False, delete=False, dis=False, folder=""
 ):
@@ -1160,132 +1239,159 @@ def generate_DMS_fragments(
                             for name, codon in gene.SynonymousCodons.items()
                             if wt_codon in codon
                         ]
-                        if custom_mutations:
-                            mutations_to_make = [
-                                seq3(x)
-                                for x in custom_mutations[
-                                    positions[mut_positions.index(i)]
-                                ].split(",")
-                            ]
-                        else:
-                            mutations_to_make = gene.aminoacids
-                        for jk in (x for x in mutations_to_make):
-                            # check if synonymous and if user wants these mutations
-                            if jk not in wt[0] or synonymous:
-                                if jk == wt[0]:
-                                    is_synonymous = True
-                                elif jk == "STOP":
-                                    is_stop = True
-                                else:
-                                    is_stop = False
-                                    is_synonymous = False
-                                codons = [
-                                    aa
-                                    for aa in gene.SynonymousCodons[jk]
-                                    if aa not in wt_codon
-                                ]
-                                p = [
-                                    gene.usage[aa] for aa in codons
-                                ]  # Find probabilities but not wild type codon
-                                p = [
-                                    xp if xp > 0.1 else 0 for xp in p
-                                ]  # Remove probabilities below 0.1
-                                p = [xp / sum(p) for xp in p]  # Normalize to 1
-                                if not p:
+                        deg = _dms_degenerate_pattern_list(custom_mutations)
+                        if deg is not None:
+                            for pattern in deg:
+                                up = pattern.strip().upper()
+                                expand_iupac_codon_pattern(up)
+                                if all(c in "ACGT" for c in up) and str(wt_codon) == up and not synonymous:
                                     continue
-                                # if the user wants to maximize the number of nucleotide changes
-                                synonymous_mutation = []
-                                synonymous_position = 0
-                                if DIMPLE.maximize_nucleotide_change:
-                                    # remove codons with only one change compared to wt_codon
-                                    max_codons = [x for x in codons if sum([x[i] != wt_codon[i] for i in range(3)]) > 1]
-                                    if max_codons:
-                                        # if there are codons with more than one base change
+                                _warn_degenerate_pattern_restrictions(tmpseq, i, up)
+                                mutation_seq = Seq(up)
+                                xfrag = tmpseq[0:i] + mutation_seq + tmpseq[i + 3 :]
+                                pos_aa = int(
+                                    (frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3
+                                )
+                                mut_key = f">p{pos_aa}_{up}"
+                                mutations[mut_key] = mutation_seq
+                                oligo_id = (
+                                    gene.geneid + "_DMS-" + str(idx + 1) + "_" + str(pos_aa) + "_" + up
+                                )
+                                dms_sequences.append(
+                                    SeqRecord(
+                                        xfrag,
+                                        id=oligo_id,
+                                        description="Frag " + fragstart + "-" + fragend,
+                                    )
+                                )
+                                name_variant = f"{pos_aa}_{up}"
+                                gene.designed_variants[oligo_id] = {
+                                    "count": 0,
+                                    "pos": pos_aa,
+                                    "mutation_type": "M",
+                                    "name": name_variant,
+                                    "codon": mutation_seq,
+                                    "wt_codon": wt_codon,
+                                    "mutation": up,
+                                    "length": 1,
+                                    "hgvs": f"c.({name_variant})",
+                                    "fragment": idx + 1,
+                                    "xfrag": xfrag,
+                                }
+                        else:
+                            if custom_mutations:
+                                mutations_to_make = [
+                                    seq3(x)
+                                    for x in custom_mutations[
+                                        positions[mut_positions.index(i)]
+                                    ].split(",")
+                                ]
+                            else:
+                                mutations_to_make = gene.aminoacids
+                            for jk in (x for x in mutations_to_make):
+                                # check if synonymous and if user wants these mutations
+                                if jk not in wt[0] or synonymous:
+                                    if jk == wt[0]:
+                                        is_synonymous = True
+                                    elif jk == "STOP":
+                                        is_stop = True
+                                    else:
+                                        is_stop = False
+                                        is_synonymous = False
+                                    codons = [
+                                        aa
+                                        for aa in gene.SynonymousCodons[jk]
+                                        if aa not in wt_codon
+                                    ]
+                                    p = [
+                                        gene.usage[aa] for aa in codons
+                                    ]  # Find probabilities but not wild type codon
+                                    p = [
+                                        xp if xp > 0.1 else 0 for xp in p
+                                    ]  # Remove probabilities below 0.1
+                                    p = [xp / sum(p) for xp in p]  # Normalize to 1
+                                    if not p:
+                                        continue
+                                    # if the user wants to maximize the number of nucleotide changes
+                                    synonymous_mutation = []
+                                    synonymous_position = 0
+                                    if DIMPLE.maximize_nucleotide_change:
+                                        # remove codons with only one change compared to wt_codon
+                                        max_codons = [x for x in codons if sum([x[i] != wt_codon[i] for i in range(3)]) > 1]
+                                        if max_codons:
+                                            # if there are codons with more than one base change
+                                            mutation = gene.rng.choice(
+                                                max_codons, 1, p
+                                            )  # Pick one codon
+                                            xfrag = (
+                                                    tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]
+                                            )  # Add mutation to fragment
+                                        else:
+                                            # no codons with more than one base change. Creating synonymous mutation in neighboring codon.
+                                            mutation = gene.rng.choice(
+                                                codons, 1, p
+                                            )  # Pick one codon
+                                            # find neighboring codon
+                                            tmp_synonymous = [name for name, codon in gene.SynonymousCodons.items() if tmpseq[i-3:i] in codon]
+                                            synonymous_codons = gene.SynonymousCodons[tmp_synonymous[0]]
+                                            max_synonymous = [x for x in synonymous_codons if sum([x[c] != tmpseq[i-3:i][c] for c in range(3)]) > 0]
+                                            if max_synonymous and not (idx == 0 and mut_positions.index(i) == 0):
+                                                synonymous_mutation = gene.rng.choice(max_synonymous, 1)
+                                                xfrag = (
+                                                        tmpseq[0:i-3] + synonymous_mutation[0] + mutation[0] + tmpseq[i + 3:]
+                                                )  # Add mutation to fragment
+                                                synonymous_position = -1
+                                            else:
+                                                tmp_synonymous = [name for name, codon in gene.SynonymousCodons.items() if tmpseq[i+3:i+6] in codon]
+                                                synonymous_codons = gene.SynonymousCodons[tmp_synonymous[0]]
+                                                max_synonymous = [x for x in synonymous_codons if
+                                                                  sum([x[c] != tmpseq[i+3:i+6][c] for c in range(3)]) > 0]
+                                                if max_synonymous:
+                                                    synonymous_mutation = gene.rng.choice(
+                                                        max_synonymous, 1
+                                                    )
+                                                    xfrag = (
+                                                            tmpseq[0:i] + mutation[0] + synonymous_mutation[0] + tmpseq[i+6:]
+                                                    )  # Add mutation to fragment
+                                                    synonymous_position = +1
+                                                else:
+                                                    print('Unable to create synonymous mutation in neighboring codon. Continuing with single nucleotide change')
+                                                    xfrag = (tmpseq[0:i] + mutation[0] + tmpseq[i + 3:])
+                                                    print(xfrag)
+                                    else:
                                         mutation = gene.rng.choice(
-                                            max_codons, 1, p
+                                            codons, 1, p
                                         )  # Pick one codon
                                         xfrag = (
                                                 tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]
                                         )  # Add mutation to fragment
-                                    else:
-                                        # no codons with more than one base change. Creating synonymous mutation in neighboring codon.
-                                        mutation = gene.rng.choice(
-                                            codons, 1, p
-                                        )  # Pick one codon
-                                        # find neighboring codon
-                                        tmp_synonymous = [name for name, codon in gene.SynonymousCodons.items() if tmpseq[i-3:i] in codon]
-                                        synonymous_codons = gene.SynonymousCodons[tmp_synonymous[0]]
-                                        max_synonymous = [x for x in synonymous_codons if sum([x[c] != tmpseq[i-3:i][c] for c in range(3)]) > 0]
-                                        if max_synonymous and not (idx == 0 and mut_positions.index(i) == 0):
-                                            synonymous_mutation = gene.rng.choice(max_synonymous, 1)
-                                            xfrag = (
-                                                    tmpseq[0:i-3] + synonymous_mutation[0] + mutation[0] + tmpseq[i + 3:]
-                                            )  # Add mutation to fragment
-                                            synonymous_position = -1
-                                        else:
-                                            tmp_synonymous = [name for name, codon in gene.SynonymousCodons.items() if tmpseq[i+3:i+6] in codon]
-                                            synonymous_codons = gene.SynonymousCodons[tmp_synonymous[0]]
-                                            max_synonymous = [x for x in synonymous_codons if
-                                                              sum([x[c] != tmpseq[i+3:i+6][c] for c in range(3)]) > 0]
-                                            if max_synonymous:
-                                                synonymous_mutation = gene.rng.choice(
-                                                    max_synonymous, 1
+                                    # Check each cassette for more than 2 BsmBI and 2 BsaI sites
+                                    avoid_count = 0
+                                    while any(
+                                        [
+                                            (
+                                                xfrag.upper().count(x)
+                                                + xfrag.upper().count(
+                                                    x.reverse_complement()
                                                 )
-                                                xfrag = (
-                                                        tmpseq[0:i] + mutation[0] + synonymous_mutation[0] + tmpseq[i+6:]
-                                                )  # Add mutation to fragment
-                                                synonymous_position = +1
-                                            else:
-                                                print('Unable to create synonymous mutation in neighboring codon. Continuing with single nucleotide change')
-                                                xfrag = (tmpseq[0:i] + mutation[0] + tmpseq[i + 3:])
-                                                print(xfrag)
-                                else:
-                                    mutation = gene.rng.choice(
-                                        codons, 1, p
-                                    )  # Pick one codon
-                                    xfrag = (
-                                            tmpseq[0:i] + mutation[0] + tmpseq[i + 3:]
-                                    )  # Add mutation to fragment
-                                # Check each cassette for more than 2 BsmBI and 2 BsaI sites
-                                avoid_count = 0
-                                while any(
-                                    [
-                                        (
-                                            xfrag.upper().count(x)
-                                            + xfrag.upper().count(
-                                                x.reverse_complement()
                                             )
-                                        )
-                                        > 0
-                                        for x in DIMPLE.avoid_sequence
-                                    ]
-                                ):
-                                    mutation = gene.rng.choice(
-                                        gene.SynonymousCodons[jk], 1, p
-                                    )  # Pick one codon
-                                    avoid_count += 1
-                                    xfrag = tmpseq[0:i] + mutation[0] + tmpseq[i + 3 :]
-                                    if avoid_count > 10:
-                                        warnings.warn(
-                                            f"Unwanted restriction site found within substitution fragment: {str(xfrag)}"
-                                        )
-                                        logger.error(
-                                            f"Unwanted restriction site found within substitution fragment: {str(xfrag)}"
-                                        )
-                                        break
-                                mutations[
-                                    ">"
-                                    + wt[0]
-                                    + str(
-                                        int(
-                                            (frag[0] + i + 6 - offset - DIMPLE.primerBuffer)
-                                            / 3
-                                        )
-                                    )
-                                    + jk
-                                    ] = mutation[0]
-                                # if there was a synonymous mutation added then add the synonymous mutation to the mutation list
-                                if synonymous_mutation:
+                                            > 0
+                                            for x in DIMPLE.avoid_sequence
+                                        ]
+                                    ):
+                                        mutation = gene.rng.choice(
+                                            gene.SynonymousCodons[jk], 1, p
+                                        )  # Pick one codon
+                                        avoid_count += 1
+                                        xfrag = tmpseq[0:i] + mutation[0] + tmpseq[i + 3 :]
+                                        if avoid_count > 10:
+                                            warnings.warn(
+                                                f"Unwanted restriction site found within substitution fragment: {str(xfrag)}"
+                                            )
+                                            logger.error(
+                                                f"Unwanted restriction site found within substitution fragment: {str(xfrag)}"
+                                            )
+                                            break
                                     mutations[
                                         ">"
                                         + wt[0]
@@ -1296,37 +1402,50 @@ def generate_DMS_fragments(
                                             )
                                         )
                                         + jk
-                                        ] += str(synonymous_position) + '_' + synonymous_mutation[0]
-                                oligo_id = gene.geneid + "_DMS-" + str(idx + 1) + "_" + wt[0] + str(
-                                    int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3)
-                                ) + jk
-                                dms_sequences.append(
-                                    SeqRecord(
-                                        xfrag,
-                                        id=oligo_id,
-                                        description="Frag " + fragstart + "-" + fragend,
+                                        ] = mutation[0]
+                                    # if there was a synonymous mutation added then add the synonymous mutation to the mutation list
+                                    if synonymous_mutation:
+                                        mutations[
+                                            ">"
+                                            + wt[0]
+                                            + str(
+                                                int(
+                                                    (frag[0] + i + 6 - offset - DIMPLE.primerBuffer)
+                                                    / 3
+                                                )
+                                            )
+                                            + jk
+                                            ] += str(synonymous_position) + '_' + synonymous_mutation[0]
+                                    oligo_id = gene.geneid + "_DMS-" + str(idx + 1) + "_" + wt[0] + str(
+                                        int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3)
+                                    ) + jk
+                                    dms_sequences.append(
+                                        SeqRecord(
+                                            xfrag,
+                                            id=oligo_id,
+                                            description="Frag " + fragstart + "-" + fragend,
+                                        )
                                     )
-                                )
-                                if is_synonymous:
-                                    mutation_type = 'S'
-                                elif is_stop:
-                                    mutation_type = 'X'
-                                else:
-                                    mutation_type = 'M'
-                                name = f'{seq1(wt[0])}{int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3)}{seq1(jk)}'
-                                gene.designed_variants[oligo_id] = {
-                                        'count': 0,
-                                        'pos': int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3),
-                                        'mutation_type': mutation_type,
-                                        'name': name,
-                                        'codon': mutation[0],
-                                        'wt_codon':wt_codon,
-                                        'mutation': seq1(jk),
-                                        'length': 1,
-                                        'hgvs': f'p.({name})',
-                                        'fragment': idx + 1,
-                                        'xfrag': xfrag,
-                                    }
+                                    if is_synonymous:
+                                        mutation_type = 'S'
+                                    elif is_stop:
+                                        mutation_type = 'X'
+                                    else:
+                                        mutation_type = 'M'
+                                    name = f'{seq1(wt[0])}{int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3)}{seq1(jk)}'
+                                    gene.designed_variants[oligo_id] = {
+                                            'count': 0,
+                                            'pos': int((frag[0] + i + 6 - offset - DIMPLE.primerBuffer) / 3),
+                                            'mutation_type': mutation_type,
+                                            'name': name,
+                                            'codon': mutation[0],
+                                            'wt_codon':wt_codon,
+                                            'mutation': seq1(jk),
+                                            'length': 1,
+                                            'hgvs': f'p.({name})',
+                                            'fragment': idx + 1,
+                                            'xfrag': xfrag,
+                                        }
                         # if double mutations are selected then make every possible double mutation
                         if DIMPLE.make_double:
                             # select every permutation of mut_positions order doesn't matter
@@ -1370,7 +1489,7 @@ def generate_DMS_fragments(
                     ) as file:
                         for mut in mutations.keys():
                             file.write(mut + "\n")
-                            file.write(mutations[mut] + "\n")
+                            file.write(str(mutations[mut]) + "\n")
                 ### Scanning Insertions
                 if insert:
                     insert_translations = {}

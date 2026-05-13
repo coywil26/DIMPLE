@@ -3,6 +3,7 @@
 
 from DIMPLE.DIMPLE import (
     align_genevariation,
+    expand_iupac_codon_pattern,
     print_all,
     post_qc,
     addgene,
@@ -194,6 +195,30 @@ def run():
     DIMPLE.doublefrag = app.doublefrag
     DIMPLE.maximize_nucleotide_change = app.max_mutations.get()
 
+    mode = app.dms_codon_mode.get().strip()
+    DIMPLE.dms_codon_mode = mode
+    if mode == "custom":
+        DIMPLE.dms_custom_codon_patterns = [
+            x.strip().upper()
+            for x in app.dms_custom_codons.get().split(",")
+            if x.strip()
+        ]
+        if not DIMPLE.dms_custom_codon_patterns:
+            app.output_text.insert(
+                tk.END,
+                "Error: DMS codon mode is custom but no patterns were entered.\n",
+            )
+            messagebox.showerror(
+                "DMS codon mode",
+                "Enter comma-separated 3-letter IUPAC codons (e.g. NTT,NAN,GCT).",
+            )
+            raise ValueError("dms_codon_mode custom requires at least one codon pattern.")
+        for pat in DIMPLE.dms_custom_codon_patterns:
+            expand_iupac_codon_pattern(pat)
+    else:
+        DIMPLE.dms_custom_codon_patterns = None
+    app.output_text.insert(tk.END, f"DMS codon mode: {mode}\n")
+
     # Set up indel parameters
     if app.delete.get() == 0:
         deletions = False
@@ -305,6 +330,8 @@ class Application(tk.Frame):
         self.doublefrag = tk.IntVar()
         self.avoid_breaksites = tk.IntVar()
         self.max_mutations = tk.IntVar()
+        self.dms_codon_mode = tk.StringVar(value="amino_acid")
+        self.dms_custom_codons = tk.StringVar(value="")
 
         self.wDir_file = tk.Button(
             self, text="Working Directory", command=self.browse_wDir
@@ -509,6 +536,33 @@ class Application(tk.Frame):
         )
         self.include_sub_check.pack()
         self.include_sub_check.deselect()
+        tk.Label(
+            self,
+            text="DMS codon layout (degenerate / multiplex)",
+            font="helvetica 10 underline",
+        ).pack(pady=(4, 0))
+        dms_mode_frame = tk.Frame(self)
+        dms_mode_frame.pack()
+        for label, value in (
+            ("Per amino acid (classic)", "amino_acid"),
+            ("NNN (one pool per site)", "NNN"),
+            ("NNG + NNT (two pools per site)", "NNG_NNT"),
+            ("Custom IUPAC triplets", "custom"),
+        ):
+            tk.Radiobutton(
+                dms_mode_frame,
+                text=label,
+                variable=self.dms_codon_mode,
+                value=value,
+            ).pack(anchor="w")
+        tk.Label(
+            self,
+            text="Custom patterns (comma-separated 3-letter IUPAC, e.g. NTT,NAN,GCT):",
+        ).pack(anchor="w")
+        self.dms_custom_codons_entry = tk.Entry(
+            self, width=80, textvariable=self.dms_custom_codons
+        )
+        self.dms_custom_codons_entry.pack()
         self.max_mut = tk.Checkbutton(
             self,
             text="Maximize Nucleotide Change (2 or more)",
@@ -630,6 +684,6 @@ class Application(tk.Frame):
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.geometry("700x1100")
+    root.geometry("700x1250")
     app = Application(master=root)
     app.mainloop()

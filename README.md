@@ -1,4 +1,4 @@
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/coywil26/DIMPLE/blob/colab/DIMPLE.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/coywil26/DIMPLE/blob/add-random-nucleotides/DIMPLE.ipynb)
 
 # DIMPLE: Deep Indel Missense Programmable Library Engineering
 
